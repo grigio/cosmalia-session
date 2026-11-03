@@ -36,13 +36,11 @@ license=(MIT)
 #
 # cosmic-settings-daemon is what serves the cosmic-config watchers (theme,
 # appearance, keybind changes) over D-Bus; without it nothing reloads live.
-# xdg-desktop-portal-gnome is not the session's portal backend either:
-# cosmalia-portals.conf names it for FileChooser only, so file dialogs are the
-# GNOME (GTK4/libadwaita) picker while screenshots and screencast stay on the
-# cosmic backend. It is kept out of default= because its other interfaces
-# (Clipboard, Notification, GlobalShortcuts, …) talk to gnome-shell. It pulls
-# in nautilus, and xdg-desktop-portal-gtk, which is what default= falls back to
-# for the interfaces cosmic does not implement.
+# xdg-desktop-portal-gnome is named for FileChooser only, so file dialogs are the
+# GNOME (GTK4/libadwaita) picker. Screenshot and ScreenCast use the wlr
+# backend (xdg-desktop-portal-wlr) because xdg-desktop-portal-cosmic crashes on
+# ext_image_copy_capture_session_v1 protocol errors. xdg-desktop-portal-gtk
+# is what default= falls back to for the interfaces cosmic does not implement.
 # polkit ships polkit-agent-helper-1, the helper used by Noctalia's built-in
 # polkit agent. gnome-keyring provides the Secret Service browsers expect.
 # wireplumber is the PipeWire session manager; pipewire-pulse only requires the
@@ -52,8 +50,7 @@ depends=(
   noctalia
   cosmic-settings
   cosmic-settings-daemon
-  cosmic-screenshot
-  xdg-desktop-portal-cosmic
+  xdg-desktop-portal-wlr
   xdg-desktop-portal-gnome
   polkit
   gnome-keyring
