@@ -46,7 +46,7 @@ fi
 # The session starts these directly, so a missing one is a broken install,
 # not a warning.
 missing=0
-for bin in /usr/bin/cosmic-comp /usr/bin/noctalia /usr/bin/cosmic-settings-daemon; do
+for bin in /usr/bin/cosmic-comp /usr/bin/noctalia /usr/bin/cosmic-settings-daemon /usr/bin/cosmic-screenshot; do
     if [[ ! -x $bin ]]; then
         echo "error: $bin is missing or not executable" >&2
         missing=1
@@ -68,6 +68,11 @@ if ! pacman -Qq xdg-desktop-portal-gnome >/dev/null 2>&1; then
     echo "warning: xdg-desktop-portal-gnome is not installed; file dialogs will" >&2
     echo "         use the COSMIC picker. Install it with:" >&2
     echo "         sudo pacman -S xdg-desktop-portal-gnome" >&2
+fi
+
+# Verify portal configuration
+if [[ ! -f /usr/share/xdg-desktop-portal/cosmalia-portals.conf ]]; then
+    echo "warning: /usr/share/xdg-desktop-portal/cosmalia-portals.conf is missing" >&2
 fi
 
 while IFS= read -r -d '' f; do

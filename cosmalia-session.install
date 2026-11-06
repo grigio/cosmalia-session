@@ -1,3 +1,4 @@
+#!/bin/sh
 # The package installs the session and its systemd user units. It deliberately
 # does not edit /etc/greetd: installing a package should not change which
 # session the greeter starts. Making Cosmalia the default is an explicit step.

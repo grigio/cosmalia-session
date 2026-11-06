@@ -82,6 +82,12 @@ jobs:
             makepkg --nodeps --noconfirm --force
           "
 
+      - name: Lint shell scripts
+        run: |
+          set -euo pipefail
+          pacman -Syu --noconfirm --needed --disable-download-timeout shellcheck
+          shellcheck scripts/*.sh files/usr/bin/cosmalia-session cosmalia-session.install
+
       - name: Collect packages
         id: pkg
         run: |

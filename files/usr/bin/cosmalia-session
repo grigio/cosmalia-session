@@ -102,7 +102,14 @@ fi
 stamp="$XDG_RUNTIME_DIR/.cosmalia-session-start"
 : >"$stamp"
 
-"$comp" --no-xwayland >>"$log" 2>&1 &
+# Allow disabling --no-xwayland via env var for apps that need XWayland
+cosmalia_no_xwayland=${COSMALIA_NO_XWAYLAND:-1}
+if [ "$cosmalia_no_xwayland" -eq 1 ]; then
+    comp_args="--no-xwayland"
+else
+    comp_args=""
+fi
+"$comp" $comp_args >>"$log" 2>&1 &
 comp_pid=$!
 
 # On logout the session scope SIGTERMs this script, and even a plain

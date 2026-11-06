@@ -17,6 +17,11 @@
 # Both can be overridden, as .github/workflows/arch-package.yml does:
 #
 #   SESSION_VERSION=1.2.3 SESSION_PKGREL=12 makepkg -f
+#
+# pkgrel is derived from git history (commits touching packaging files) so that
+# a rebuild of the same tag still produces a higher pkgrel, which pacman sees
+# as an upgrade. This works both locally and in CI because both use the same
+# git history.
 
 pkgname=cosmalia-session
 pkgver=${SESSION_VERSION:-$(git -C "${startdir:-$PWD}" describe --tags --abbrev=0 2>/dev/null | sed 's/^v//')}
@@ -55,9 +60,12 @@ depends=(
   polkit
   gnome-keyring
   wireplumber
+  cosmic-screenshot
 )
 optdepends=(
   'polkit-gnome: fallback polkit agent when Noctalia built-in agent is disabled'
+  'zram-generator: compressed RAM swap (helps stay under 1 GB)'
+  'systemd-oomd: userspace OOM killer for memory pressure'
 )
 # Renamed from cosmic-comp-traffic-session; let pacman replace the old package
 # instead of leaving two sessions with the same files on disk.
