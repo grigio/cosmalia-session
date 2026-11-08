@@ -40,7 +40,7 @@ jobs:
       # Install build dependencies
       - name: Install build tools
         run: |
-          dnf install -y rpm-build rpmdevtools git gh make
+          dnf install -y rpm-build rpmdevtools git gh make rsync
 
       - uses: actions/checkout@v6
         with:
