@@ -86,7 +86,8 @@ jobs:
         run: |
           set -euo pipefail
           pacman -Syu --noconfirm --needed --disable-download-timeout shellcheck
-          shellcheck scripts/*.sh files/usr/bin/cosmalia-session cosmalia-session.install
+          shellcheck -s bash scripts/*.sh cosmalia-session.install
+          shellcheck -s sh files/usr/bin/cosmalia-session
 
       - name: Collect packages
         id: pkg
