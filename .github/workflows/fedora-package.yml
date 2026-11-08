@@ -1,0 +1,183 @@
+name: Fedora package
+
+# Builds the cosmalia-session Fedora RPM package and attaches it to a
+# GitHub release, for every release tag (v*).
+#
+# Triggers
+#   push of a v* tag   build and publish that tag
+#   workflow_dispatch  rebuild an existing tag (e.g. after fixing the packaging)
+#
+# The package version comes from the tag (v1.2.3 -> 1.2.3) and release from
+# the number of commits that touched the packaging files, so a rebuild of the
+# same tag is still seen by dnf as an upgrade.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to build, e.g. v1.2.3'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fedora-package-${{ github.event.inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  package:
+    name: ${{ github.event.inputs.tag || github.ref_name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    container:
+      image: fedora:latest
+      options: --privileged
+    steps:
+      # Install build dependencies
+      - name: Install build tools
+        run: |
+          dnf install -y rpm-build rpmdevtools git github-cli make
+
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - name: Prepare version and release
+        id: version
+        run: |
+          set -euo pipefail
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          version=${TAG#v}
+          [[ $version =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
+            echo "tag $TAG is not v<major>.<minor>.<patch>" >&2
+            exit 1
+          }
+
+          # release monotonic with packaged changes: 1, 2, 3, ...
+          release=$(git rev-list --count HEAD -- \
+            cosmalia-session.spec README.md LICENSE \
+            files scripts/set-default-greetd.sh)
+          (( release >= 1 )) || release=1
+          echo "building cosmalia-session $version-$release"
+          echo "version=$version" >> $GITHUB_OUTPUT
+          echo "release=$release" >> $GITHUB_OUTPUT
+
+      - name: Setup rpmbuild tree
+        run: |
+          rpmdev-setuptree
+
+      - name: Copy source files
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          RELEASE: ${{ steps.version.outputs.release }}
+        run: |
+          set -euo pipefail
+          # Create source tarball (excluding .git and build artifacts)
+          # rpmbuild expects the tarball to extract to cosmalia-session-%{version}/
+          cd $HOME/rpmbuild/SOURCES
+          mkdir -p cosmalia-session-${VERSION}
+          rsync -a --exclude='.git' --exclude='*.rpm' --exclude='*.src.rpm' \
+            $GITHUB_WORKSPACE/ cosmalia-session-${VERSION}/
+          tar -czf cosmalia-session-${VERSION}.tar.gz cosmalia-session-${VERSION}
+          rm -rf cosmalia-session-${VERSION}
+
+      - name: Build RPM
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          RELEASE: ${{ steps.version.outputs.release }}
+        run: |
+          set -euo pipefail
+          cd $GITHUB_WORKSPACE
+          rpmbuild -ba \
+            --define "version ${VERSION}" \
+            --define "release ${RELEASE}" \
+            --define "_sourcedir $HOME/rpmbuild/SOURCES" \
+            --define "_rpmdir $HOME/rpmbuild/RPMS" \
+            --define "_srcrpmdir $HOME/rpmbuild/SRPMS" \
+            cosmalia-session.spec
+
+      - name: Lint shell scripts
+        run: |
+          set -euo pipefail
+          dnf install -y shellcheck
+          shellcheck scripts/*.sh files/usr/bin/cosmalia-session
+
+      - name: Collect packages
+        id: pkg
+        run: |
+          set -euo pipefail
+          cd $HOME/rpmbuild
+          shopt -s nullglob
+          assets=()
+          for file in RPMS/noarch/*.rpm SRPMS/*.src.rpm; do
+            sha256sum "$file" > "$file.sha256"
+            assets+=("$file" "$file.sha256")
+          done
+          (( ${#assets[@]} )) || { echo "no package was produced" >&2; exit 1; }
+          printf '%s\n' "${assets[@]}" > /tmp/assets.txt
+          cat /tmp/assets.txt
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.event.inputs.tag || github.ref_name }}
+        run: |
+          set -euo pipefail
+          cd $HOME/rpmbuild
+          mapfile -t assets < /tmp/assets.txt
+
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "release $TAG exists, uploading assets"
+            gh release upload "$TAG" "${assets[@]}" --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            notes=$(cat <<EOF
+            Fedora RPM package of [Cosmalia](https://github.com/$GITHUB_REPOSITORY)
+            \`$TAG\`: the opinionated XDG session (launcher, session entry and
+            systemd user units) for cosmic-comp-traffic + Noctalia.
+
+            ### Install
+
+            \`\`\`sh
+            gh release download $TAG -R $GITHUB_REPOSITORY -p '*.rpm' -D /tmp/cosmalia-session
+            cd /tmp/cosmalia-session && sha256sum -c ./*.rpm.sha256
+            sudo dnf install ./cosmalia-session-*.noarch.rpm
+            \`\`\`
+
+            The package does not change the greeter default. To make it selectable
+            in a gtkgreet dropdown without changing the default:
+
+            \`\`\`sh
+            sudo cosmalia-session-default --list
+            \`\`\`
+
+            Then, optionally, make it the greeter default:
+
+            \`\`\`sh
+            sudo cosmalia-session-default
+            \`\`\`
+
+            Needs \`cosmic-comp\` (provided by cosmic-comp-traffic), \`noctalia\`,
+            \`cosmic-settings\`, \`cosmic-settings-daemon\`, \`cosmic-screenshot\`,
+            \`xdg-desktop-portal-cosmic\`, \`xdg-desktop-portal-wlr\`,
+            \`xdg-desktop-portal-gnome\`, \`polkit\`, \`gnome-keyring\` and
+            \`wireplumber\`. The package replaces the old
+            \`cosmic-comp-traffic-session\` package.
+
+            ### Revert
+
+            \`\`\`sh
+            sudo dnf remove cosmalia-session
+            \`\`\`
+            EOF
+            )
+            gh release create "$TAG" "${assets[@]}" \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "$TAG" \
+              --notes "$notes" \
+              --verify-tag
+          fi
