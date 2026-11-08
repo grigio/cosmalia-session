@@ -136,7 +136,7 @@ jobs:
             echo "release $TAG exists, uploading assets"
             gh release upload "$TAG" "${assets[@]}" --clobber --repo "$GITHUB_REPOSITORY"
           else
-            notes=$(cat <<EOF
+            cat > /tmp/release-notes.md <<'ENDNOTES'
             Fedora RPM package of [Cosmalia](https://github.com/$GITHUB_REPOSITORY)
             \`$TAG\`: the opinionated XDG session (launcher, session entry and
             systemd user units) for cosmic-comp-traffic + Noctalia.
@@ -174,11 +174,10 @@ jobs:
             \`\`\`sh
             sudo dnf remove cosmalia-session
             \`\`\`
-            EOF
-            )
+            ENDNOTES
             gh release create "$TAG" "${assets[@]}" \
               --repo "$GITHUB_REPOSITORY" \
               --title "$TAG" \
-              --notes "$notes" \
+              --notes-file /tmp/release-notes.md \
               --verify-tag
           fi
