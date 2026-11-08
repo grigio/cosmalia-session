@@ -68,6 +68,27 @@ sudo cosmalia-session-default        # optional: make it the default
 ./scripts/install.sh --default       # ... and make it the default
 ```
 
+### Fedora
+
+```sh
+# A) the published package (recommended)
+gh release download --latest -R grigio/cosmalia-session \
+  -p '*.rpm' -D /tmp/cosmalia-session
+cd /tmp/cosmalia-session && sha256sum -c ./*.rpm.sha256
+sudo dnf install ./cosmalia-session-*.noarch.rpm
+# Cosmalia is installed, but NOT the default.
+sudo cosmalia-session-default        # optional: make it the default
+
+# B) build it locally from this checkout
+rpmbuild -ba cosmalia-session.spec
+sudo dnf install ~/rpmbuild/RPMS/noarch/cosmalia-session-*.noarch.rpm
+sudo cosmalia-session-default        # optional: make it the default
+
+# C) straight from the checkout, no package
+./scripts/install.sh                 # session + helper + docs, not default
+./scripts/install.sh --default       # ... and make it the default
+```
+
 None of these edit `/etc/greetd` unless you pass `--default` or run `cosmalia-session-default`. Greeters that read `/usr/share/wayland-sessions` (Noctalia Greeter, GDM, SDDM) list Cosmalia immediately; gtkgreet only lists `/etc/greetd/environments` plus its `-c` argument. To add Cosmalia to a gtkgreet dropdown without changing the default:
 
 ```sh
@@ -79,6 +100,8 @@ See [Making it the greeter default](#making-it-the-greeter-default) for the defa
 `install.sh` warns if `cosmic-comp-traffic` is not installed (then `/usr/bin/cosmic-comp` would be the unpatched compositor) and if `xdg-desktop-portal-gnome` is missing (file dialogs would stay COSMIC's). The session itself also checks the compositor at login and logs a warning. It refuses to run as root, and refuses if either `cosmalia-session` or the old `cosmic-comp-traffic-session` package is installed, so pacman's file list stays accurate.
 
 ### The package
+
+#### Arch Linux
 
 `arch=(any)`, no sources (it packages this tree). It installs the launcher, the XDG session entry, the session target, the two services, the portal configuration, the greeter helper, and the docs under `/usr/share/doc/cosmalia-session/`.
 
@@ -93,6 +116,12 @@ Every `v*` tag is built by `.github/workflows/arch-package.yml` in an `archlinux
 `cosmic-comp-traffic` is not in the official repositories, so `makepkg` needs `--nodeps` unless it's already installed. `noctalia` and the COSMIC packages are in `extra`; on CachyOS the CachyOS repositories carry the same packages.
 
 The post-install message tells you Cosmalia was **not** made the default, how to add it to a gtkgreet dropdown, and how to make it the default; `pre_remove` warns to point the greeter at another session first.
+
+#### Fedora
+
+The Fedora RPM package is built from `cosmalia-session.spec` by `.github/workflows/fedora-package.yml` in a `fedora:latest` container. It installs the same files with Fedora paths (`/usr/lib/systemd/user/` for user units). Version comes from the tag and release from git history (same scheme as Arch). Every `v*` tag produces a noarch RPM and a source RPM attached to the GitHub release.
+
+All COSMIC dependencies (`cosmic-comp`, `noctalia`, `cosmic-settings`, `cosmic-settings-daemon`, `cosmic-screenshot`) are available in Fedora repositories. The package uses `Recommends` for optional dependencies (`polkit-gnome`, `zram-generator`, `systemd-oomd`). It `Obsoletes`/`Conflicts` with the old `cosmic-comp-traffic-session` package.
 
 ### Upgrading from `cosmic-comp-traffic-session`
 
