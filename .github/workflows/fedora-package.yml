@@ -137,44 +137,44 @@ jobs:
             gh release upload "$TAG" "${assets[@]}" --clobber --repo "$GITHUB_REPOSITORY"
           else
             cat > /tmp/release-notes.md <<'ENDNOTES'
-            Fedora RPM package of [Cosmalia](https://github.com/$GITHUB_REPOSITORY)
-            \`$TAG\`: the opinionated XDG session (launcher, session entry and
-            systemd user units) for cosmic-comp-traffic + Noctalia.
+Fedora RPM package of [Cosmalia](https://github.com/$GITHUB_REPOSITORY)
+`$TAG`: the opinionated XDG session (launcher, session entry and
+systemd user units) for cosmic-comp-traffic + Noctalia.
 
-            ### Install
+### Install
 
-            \`\`\`sh
-            gh release download $TAG -R $GITHUB_REPOSITORY -p '*.rpm' -D /tmp/cosmalia-session
-            cd /tmp/cosmalia-session && sha256sum -c ./*.rpm.sha256
-            sudo dnf install ./cosmalia-session-*.noarch.rpm
-            \`\`\`
+```sh
+gh release download $TAG -R $GITHUB_REPOSITORY -p '*.rpm' -D /tmp/cosmalia-session
+cd /tmp/cosmalia-session && sha256sum -c ./*.rpm.sha256
+sudo dnf install ./cosmalia-session-*.noarch.rpm
+```
 
-            The package does not change the greeter default. To make it selectable
-            in a gtkgreet dropdown without changing the default:
+The package does not change the greeter default. To make it selectable
+in a gtkgreet dropdown without changing the default:
 
-            \`\`\`sh
-            sudo cosmalia-session-default --list
-            \`\`\`
+```sh
+sudo cosmalia-session-default --list
+```
 
-            Then, optionally, make it the greeter default:
+Then, optionally, make it the greeter default:
 
-            \`\`\`sh
-            sudo cosmalia-session-default
-            \`\`\`
+```sh
+sudo cosmalia-session-default
+```
 
-            Needs \`cosmic-comp\` (provided by cosmic-comp-traffic), \`noctalia\`,
-            \`cosmic-settings\`, \`cosmic-settings-daemon\`, \`cosmic-screenshot\`,
-            \`xdg-desktop-portal-cosmic\`, \`xdg-desktop-portal-wlr\`,
-            \`xdg-desktop-portal-gnome\`, \`polkit\`, \`gnome-keyring\` and
-            \`wireplumber\`. The package replaces the old
-            \`cosmic-comp-traffic-session\` package.
+Needs `cosmic-comp` (provided by cosmic-comp-traffic), `noctalia`,
+`cosmic-settings`, `cosmic-settings-daemon`, `cosmic-screenshot`,
+`xdg-desktop-portal-cosmic`, `xdg-desktop-portal-wlr`,
+`xdg-desktop-portal-gnome`, `polkit`, `gnome-keyring` and
+`wireplumber`. The package replaces the old
+`cosmic-comp-traffic-session` package.
 
-            ### Revert
+### Revert
 
-            \`\`\`sh
-            sudo dnf remove cosmalia-session
-            \`\`\`
-            ENDNOTES
+```sh
+sudo dnf remove cosmalia-session
+```
+ENDNOTES
             gh release create "$TAG" "${assets[@]}" \
               --repo "$GITHUB_REPOSITORY" \
               --title "$TAG" \
