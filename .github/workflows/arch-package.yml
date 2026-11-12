@@ -72,14 +72,11 @@ jobs:
           mkdir -p /tmp/pkgout
           chown -R builder:builder "$GITHUB_WORKSPACE" /tmp/pkgout
 
-          # --nodeps: cosmic-comp-traffic is not in the official repositories
-          # and provides cosmic-comp; skipping the check avoids pulling the
-          # stock compositor into the clean container.
           su builder -s /bin/bash -c "
             cd '$GITHUB_WORKSPACE'
             SESSION_VERSION='$version' SESSION_PKGREL='$pkgrel' \
             PKGDEST=/tmp/pkgout \
-            makepkg --nodeps --noconfirm --force
+            makepkg --noconfirm --force
           "
 
       - name: Lint shell scripts
@@ -120,7 +117,7 @@ jobs:
             notes=$(cat <<EOF
           Arch Linux package of [Cosmalia](https://github.com/$GITHUB_REPOSITORY)
           \`$TAG\`: the opinionated XDG session (launcher, session entry and
-          systemd user units) for cosmic-comp-traffic + Noctalia.
+          systemd user units) for cosmic-comp + Noctalia.
 
           ### Install
 
@@ -143,8 +140,7 @@ jobs:
           sudo cosmalia-session-default
           \`\`\`
 
-          Needs [cosmic-comp-traffic](https://github.com/grigio/cosmic-comp-traffic)
-          (which provides \`cosmic-comp\`), \`noctalia\`, \`cosmic-settings\`,
+          Needs \`cosmic-comp\`, \`noctalia\`, \`cosmic-settings\`,
           \`cosmic-settings-daemon\`, \`cosmic-screenshot\`,
           \`xdg-desktop-portal-cosmic\`, \`xdg-desktop-portal-gnome\`, \`polkit\`,
           \`gnome-keyring\` and \`wireplumber\`. The package replaces the old

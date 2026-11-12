@@ -44,12 +44,9 @@ jobs:
           useradd -m builder 2>/dev/null || true
           mkdir -p /tmp/pkgout
           chown -R builder:builder "$GITHUB_WORKSPACE" /tmp/pkgout
-          # cosmic-comp-traffic is not in the official repos and provides
-          # cosmic-comp: skip the dep check instead of pulling the stock
-          # compositor into the clean container.
           su builder -s /bin/bash -c "
             cd '$GITHUB_WORKSPACE'
-            PKGDEST=/tmp/pkgout makepkg --nodeps --noconfirm --force
+            PKGDEST=/tmp/pkgout makepkg --noconfirm --force
           "
           ls -l /tmp/pkgout
           # the launcher and helper must be executable inside the package
@@ -70,8 +67,7 @@ jobs:
       - name: Install/remove smoke test
         run: |
           set -euo pipefail
-          # --nodeps: cosmic-comp-traffic/noctalia are not in this container.
-          pacman -U --noconfirm --nodeps /tmp/pkgout/*.pkg.tar.zst
+          pacman -U --noconfirm /tmp/pkgout/*.pkg.tar.zst
           test -x /usr/bin/cosmalia-session
           test -x /usr/bin/cosmalia-session-default
           test -f /usr/lib/systemd/user/noctalia.service
@@ -83,3 +79,16 @@ jobs:
             /usr/lib/systemd/user/noctalia.service \
             /usr/lib/systemd/user/cosmic-settings-daemon.service
           pacman -R --noconfirm cosmalia-session
+
+  nix:
+    name: nix flake check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: DeterminateSystems/nix-installer-action@v16
+      - name: Nix flake check
+        run: |
+          nix --extra-experimental-features "nix-command flakes" flake check
+      - name: Nix build package
+        run: |
+          nix --extra-experimental-features "nix-command flakes" build .#cosmalia-session

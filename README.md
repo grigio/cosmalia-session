@@ -4,7 +4,7 @@
 
 Cosmalia is a lightweight, modern Linux desktop that runs in under 1 GB of RAM. It combines two projects:
 
-- **cosmic-comp-traffic** — a patched COSMIC compositor with macOS-style traffic-light window buttons, Wayland blur, animations, 3-finger workspace swipes, and built-in Alt+Tab
+- **cosmic-comp** — the COSMIC compositor with macOS-style traffic-light window buttons, Wayland blur, animations, 3-finger workspace swipes, and built-in Alt+Tab
 - **Noctalia** — the shell: bar, dock, launcher, notifications, networking, lock screen, idle/suspend, MPRIS, screensaver, and a polkit agent
 
 The `cosmalia-session` package ties them together as an XDG session. It appears in any Wayland login manager (greetd, GDM, SDDM, etc.). The login manager itself is up to you.
@@ -17,7 +17,7 @@ Installing Cosmalia won't change your default session. It's available to pick, b
 
 | Component | Job |
 |---|---|
-| `cosmic-comp-traffic` | Wayland compositor; installs as `/usr/bin/cosmic-comp` |
+| `cosmic-comp` | Wayland compositor; installs as `/usr/bin/cosmic-comp` |
 | `noctalia` | Bar, dock, launcher, notifications, networking, lock screen, idle/suspend, MPRIS, polkit agent, screensaver |
 | `cosmalia-session` | This package: session launcher, XDG session entry, systemd user units, optional greeter helper |
 | `xdg-desktop-portal-cosmic` | Portal backend for screen sharing, screencast, screenshots, remote desktop, settings |
@@ -44,7 +44,7 @@ swap-priority = 100
 
 Enable with `sudo systemctl enable --now systemd-zram-setup@zram0.service`.
 
-The `cosmic-comp-traffic` package `provides`/`conflicts`/`replaces` `cosmic-comp`, so `/usr/bin/cosmic-comp` is the patched build. To switch back to the stock compositor: `sudo pacman -S cosmic-comp`.
+The `cosmic-comp` package provides the COSMIC compositor with traffic-light window buttons. To switch to a different compositor: `sudo pacman -S <compositor>`.
 
 ## Install
 
@@ -97,7 +97,7 @@ sudo cosmalia-session-default --list
 
 See [Making it the greeter default](#making-it-the-greeter-default) for the default itself.
 
-`install.sh` warns if `cosmic-comp-traffic` is not installed (then `/usr/bin/cosmic-comp` would be the unpatched compositor) and if `xdg-desktop-portal-gnome` is missing (file dialogs would stay COSMIC's). The session itself also checks the compositor at login and logs a warning. It refuses to run as root, and refuses if either `cosmalia-session` or the old `cosmic-comp-traffic-session` package is installed, so pacman's file list stays accurate.
+`install.sh` warns if `cosmic-comp` is not installed and if `xdg-desktop-portal-gnome` is missing (file dialogs would stay COSMIC's). The session itself also checks the compositor at login and logs a warning. It refuses to run as root, and refuses if either `cosmalia-session` or the old `cosmic-comp-traffic-session` package is installed, so pacman's file list stays accurate.
 
 ### The package
 
@@ -113,7 +113,7 @@ SESSION_VERSION=1.2.3 SESSION_PKGREL=12 makepkg -f
 
 Every `v*` tag is built by `.github/workflows/arch-package.yml` in an `archlinux:base-devel` container and attached to its GitHub release. A rebuild of the same tag still works because `pkgrel` is part of the filename.
 
-`cosmic-comp-traffic` is not in the official repositories, so `makepkg` needs `--nodeps` unless it's already installed. `noctalia` and the COSMIC packages are in `extra`; on CachyOS the CachyOS repositories carry the same packages.
+`cosmic-comp` is in the official repositories, so `makepkg` works without `--nodeps`. `noctalia` and the COSMIC packages are in `extra`; on CachyOS the CachyOS repositories carry the same packages.
 
 The post-install message tells you Cosmalia was **not** made the default, how to add it to a gtkgreet dropdown, and how to make it the default; `pre_remove` warns to point the greeter at another session first.
 
@@ -220,7 +220,7 @@ The launcher/compositor log is truncated at each login. Noctalia and the setting
 - **Screenshots/screencast don't work:** Check `systemctl --user status xdg-desktop-portal.service org.freedesktop.impl.portal.desktop.cosmic.service` and that `XDG_CURRENT_DESKTOP` contains `COSMIC`. Portal logs are in the user journal.
 - **File dialogs look like COSMIC's picker, or don't open:** The GNOME backend must be installed and selected. Check `pacman -Q xdg-desktop-portal-gnome`, `systemctl --user status xdg-desktop-portal-gnome.service` (inactive until first dialog — it's D-Bus activated), and that `/usr/share/xdg-desktop-portal/cosmalia-portals.conf` is present. A `portals.conf` in `~/.config/xdg-desktop-portal/` overrides the packaged one, and a unit drop-in setting `ConditionEnvironment` on the GNOME service skips it entirely.
 - **GNOME backend logs `Failed to open service channel Wayland connection` or Nautilus logs `Cannot get portal org.freedesktop.portal.Inhibit version`:** Expected and harmless. No Mutter service channel under cosmic-comp, and `Inhibit` is disabled in `cosmalia-portals.conf` on purpose; the file dialog still opens.
-- **Traffic-light decorations missing:** `pacman -Q cosmic-comp-traffic`; `/usr/bin/cosmic-comp` must come from that package, not `cosmic-comp`.
+- **Traffic-light decorations missing:** `pacman -Q cosmic-comp`; `/usr/bin/cosmic-comp` must come from the COSMIC package.
 - **Greeter doesn't default to Cosmalia:** Intentional on install. Run `sudo cosmalia-session-default`, or pick Cosmalia once in the greeter (Noctalia Greeter remembers it).
 - **Session log missing:** `XDG_RUNTIME_DIR` must exist; launch the session from a logind login, not a bare console.
 
@@ -251,3 +251,88 @@ sudo pacman -S cosmic-comp
 ```
 
 Removing the package doesn't restore the greeter config; if Cosmalia was the default, point the greeter elsewhere first (the `pre_remove` message says so).
+## NixOS
+
+Add this flake to your NixOS configuration:
+
+```nix
+# flake.nix
+{
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    cosmalia-session.url = "github:grigio/cosmalia-session";
+  };
+
+  outputs = { self, nixpkgs, cosmalia-session, ... }: {
+    nixosConfigurations.your-host = nixpkgs.lib.nixosSystem {
+      system = "x86_64-linux";
+      modules = [
+        cosmalia-session.nixosModules.cosmalia-session
+        ({ config, pkgs, ... }: {
+          services.cosmalia-session = {
+            enable = true;
+            # Make Cosmalia the default greeter session (requires greetd)
+            defaultSession = true;
+            # Enable XWayland support for legacy X11 apps
+            enableXWayland = true;
+            # Add extra packages to the session environment
+            extraPackages = [ pkgs.firefox pkgs.vscode ];
+          };
+        })
+      ];
+    };
+  };
+}
+```
+
+Then rebuild:
+
+```sh
+sudo nixos-rebuild switch --flake .#your-host
+```
+
+### NixOS Module Options
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `services.cosmalia-session.enable` | boolean | `false` | Enable Cosmalia session |
+| `services.cosmalia-session.defaultSession` | boolean | `false` | Make Cosmalia the default greeter session |
+| `services.cosmalia-session.enableXWayland` | boolean | `false` | Enable XWayland support |
+| `services.cosmalia-session.extraPackages` | list of packages | `[]` | Additional packages for the session |
+
+### Using the Overlay
+
+If you want to use the package in your own flake without the module:
+
+```nix
+# flake.nix
+{
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    cosmalia-session.url = "github:grigio/cosmalia-session";
+  };
+
+  outputs = { self, nixpkgs, cosmalia-session, ... }: {
+    nixosConfigurations.your-host = nixpkgs.lib.nixosSystem {
+      system = "x86_64-linux";
+      modules = [
+        ({ config, pkgs, ... }: {
+          # The overlay makes cosmalia-session available in pkgs
+          nixpkgs.overlays = [ cosmalia-session.overlays.default ];
+          
+          environment.systemPackages = [ pkgs.cosmalia-session ];
+        })
+      ];
+    };
+  };
+}
+```
+
+### Development Shell
+
+Enter a development shell with all dependencies:
+
+```sh
+nix develop github:grigio/cosmalia-session
+```
+
