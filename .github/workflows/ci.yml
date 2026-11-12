@@ -43,9 +43,8 @@ jobs:
           pacman-key --lsign-key 3056513887B78AEB
           pacman -U --noconfirm 'https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-keyring.pkg.tar.zst'
           pacman -U --noconfirm 'https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-mirrorlist.pkg.tar.zst'
-          echo -e "
-[chaotic-aur]
-Include = /etc/pacman.d/chaotic-mirrorlist" >> /etc/pacman.conf
+          echo '[chaotic-aur]' >> /etc/pacman.conf
+          echo 'Include = /etc/pacman.d/chaotic-mirrorlist' >> /etc/pacman.conf
           pacman -Sy --noconfirm
 
       # Install COSMIC dependencies from chaotic-aur
