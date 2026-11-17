@@ -74,7 +74,9 @@ jobs:
             --repo grigio/cosmic-comp-traffic \
             --pattern '*.pkg.tar.zst' \
             --dir /tmp
-          pacman -U --noconfirm /tmp/cosmic-comp-traffic-*.pkg.tar.zst || true
+          set +e
+          pacman -U --noconfirm /tmp/cosmic-comp-traffic-*.pkg.tar.zst
+          set -e
             noctalia \
             cosmic-settings \
             cosmic-settings-daemon \
