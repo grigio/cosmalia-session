@@ -58,7 +58,8 @@ jobs:
             cosmic-settings \
             cosmic-settings-daemon \
             xdg-desktop-portal-wlr \
-            xdg-desktop-portal-gnome \
+            xdg-desktop-portal-gtk \
+            xdg-desktop-portal-cosmic \
             polkit \
             gnome-keyring \
             wireplumber \

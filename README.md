@@ -20,8 +20,9 @@ Installing Cosmalia won't change your default session. It's available to pick, b
 | `cosmic-comp` | Wayland compositor; installs as `/usr/bin/cosmic-comp` |
 | `noctalia` | Bar, dock, launcher, notifications, networking, lock screen, idle/suspend, MPRIS, polkit agent, screensaver |
 | `cosmalia-session` | This package: session launcher, XDG session entry, systemd user units, optional greeter helper |
-| `xdg-desktop-portal-cosmic` | Portal backend for screen sharing, screencast, screenshots, remote desktop, settings |
-| `xdg-desktop-portal-gnome` | Portal backend for the file chooser only — gives you GNOME's GTK4/libadwaita picker (drawn by Nautilus) instead of COSMIC's |
+| `xdg-desktop-portal-cosmic` | Portal backend for Settings, RemoteDesktop, Access (screen sharing); screencast/screenshot unstable |
+| `xdg-desktop-portal-gtk` | Portal backend for FileChooser (GTK4/libadwaita picker) and fallback for unimplemented interfaces |
+| `xdg-desktop-portal-wlr` | Portal backend for ScreenCast and Screenshot (cosmic backend crashes on ext_image_copy_capture_session_v1) |
 | `cosmic-settings` | Settings app for controlling cosmic-comp features |
 | `cosmic-settings-daemon` | Watches cosmic-config changes so theme, appearance, and keybind edits apply live |
 | `cosmic-screenshot` | Screenshot utility that goes through the portal |
@@ -97,7 +98,7 @@ sudo cosmalia-session-default --list
 
 See [Making it the greeter default](#making-it-the-greeter-default) for the default itself.
 
-`install.sh` warns if `cosmic-comp` is not installed and if `xdg-desktop-portal-gnome` is missing (file dialogs would stay COSMIC's). The session itself also checks the compositor at login and logs a warning. It refuses to run as root, and refuses if either `cosmalia-session` or the old `cosmic-comp-traffic-session` package is installed, so pacman's file list stays accurate.
+`install.sh` errors if `cosmic-comp`, `xdg-desktop-portal-gtk`, or `xdg-desktop-portal-wlr` are not installed (required for compositor, file dialogs, and screencast/screenshot). The session itself also checks the compositor at login and logs a warning. It refuses to run as root, and refuses if either `cosmalia-session` or the old `cosmic-comp-traffic-session` package is installed, so pacman's file list stays accurate.
 
 ### The package
 
@@ -121,7 +122,7 @@ The post-install message tells you Cosmalia was **not** made the default, how to
 
 The Fedora RPM package is built from `cosmalia-session.spec` by `.github/workflows/fedora-package.yml` in a `fedora:latest` container. It installs the same files with Fedora paths (`/usr/lib/systemd/user/` for user units). Version comes from the tag and release from git history (same scheme as Arch). Every `v*` tag produces a noarch RPM and a source RPM attached to the GitHub release.
 
-All COSMIC dependencies (`cosmic-comp`, `noctalia`, `cosmic-settings`, `cosmic-settings-daemon`, `cosmic-screenshot`) are available in Fedora repositories. The package uses `Recommends` for optional dependencies (`polkit-gnome`, `zram-generator`, `systemd-oomd`). It `Obsoletes`/`Conflicts` with the old `cosmic-comp-traffic-session` package.
+All COSMIC dependencies (`cosmic-comp`, `noctalia`, `cosmic-settings`, `cosmic-settings-daemon`, `cosmic-screenshot`, `xdg-desktop-portal-gtk`, `xdg-desktop-portal-wlr`, `xdg-desktop-portal-cosmic`) are available in Fedora repositories. The package uses `Recommends` for optional dependencies (`polkit-gnome`, `zram-generator`, `systemd-oomd`). It `Obsoletes`/`Conflicts` with the old `cosmic-comp-traffic-session` package.
 
 ### Upgrading from `cosmic-comp-traffic-session`
 
@@ -143,7 +144,7 @@ Started by the session, deliberately:
 | `cosmic-comp --no-xwayland` | Compositor (traffic lights, soft focus ring, `zwlr_foreign_toplevel_manager_v1`, 3-finger workspace swipe, in-process Alt+Tab) |
 | `noctalia.service` | Bar, dock, launcher, notifications, lock screen, idle/suspend, MPRIS, polkit agent, screensaver; systemd restarts on failure |
 | `cosmic-settings-daemon.service` | cosmic-config watchers: live theme, appearance and keybind changes |
-| `xdg-desktop-portal` + `xdg-desktop-portal-cosmic` | Restarted per login: the cosmic backend has no `PartOf=graphical-session.target`, so it survives logout and would otherwise keep a stale `WAYLAND_DISPLAY` |
+| `xdg-desktop-portal` + `xdg-desktop-portal-wlr` + `xdg-desktop-portal-cosmic` | Restarted per login: wlr backend (ScreenCast/Screenshot) and cosmic backend (Settings/RemoteDesktop) have no `PartOf=graphical-session.target`, so they survive logout and would otherwise keep a stale `WAYLAND_DISPLAY` |
 
 The two services are `PartOf=cosmalia-session.target`, so logout stops them with the target. They log to the journal and are not enabled in the user manager; starting the target is enough.
 
@@ -151,8 +152,7 @@ Already covered without starting anything here:
 
 | Piece | Why it needs no session entry |
 |---|---|
-| `xdg-desktop-portal-gnome` | D-Bus activated by the first file dialog and stopped by `PartOf=graphical-session.target` — no session entry needed, never holds a stale socket |
-| `xdg-desktop-portal-gtk` | Pulled in by the GNOME backend; `default=` falls back to it for interfaces cosmic doesn't implement, same D-Bus activation and lifecycle |
+| `xdg-desktop-portal-gtk` | D-Bus activated by the first file dialog and stopped by `PartOf=graphical-session.target` — no session entry needed, never holds a stale socket |
 | D-Bus user bus (`dbus-broker`/`dbus-daemon`) | Started by the user manager |
 | `pipewire`, `wireplumber` | Socket + enabled unit; audio and screencast |
 | `gnome-keyring-daemon` | D-Bus/socket activated; PAM unlocks it at login (see below) |
@@ -178,14 +178,14 @@ Then `systemctl --user daemon-reload`. This affects only the session target, not
 
 Deliberately **not** part of the session:
 
-- `xdg-desktop-portal-wlr`: not installed. Its `.portal` file declares `UseIn=wlroots`, and nothing here needs it. `xdg-desktop-portal-gnome` is installed only for `FileChooser`; its other interfaces go through gnome-shell, which this session doesn't run, so it stays out of `default=`.
+- `xdg-desktop-portal-gnome`: not installed for its non-FileChooser interfaces. Its `.portal` file declares interfaces (Notification, Clipboard, GlobalShortcuts, InputCapture, Usb) that require gnome-shell's Mutter service channel, which no Cosmalia session runs. The GTK backend (`xdg-desktop-portal-gtk`) provides the GTK4/libadwaita file picker (FileChooser) and serves as the fallback for interfaces cosmic doesn't implement.
 - `gnome-keyring` in the session target: it must outlive the graphical session. Only one Secret Service provider may run; `oo7` or `keepassxc` are drop-in alternatives (`org.freedesktop.secrets`), gnome-keyring is what COSMIC itself pairs with.
 - `polkit-gnome`: Noctalia registers its own polkit agent, so starting `polkit-gnome` too would give two agents. Keep it as a fallback for setups where Noctalia's agent is disabled; run `polkit-gnome-authentication-agent-1` at login in that case.
 - `noctalia-labwc-sync.path`, `labwc-4finger-gestures.service`: labwc only (`ConditionEnvironment`, `wtype`); cosmic-comp handles both natively.
 - `voxtype`, `syncthing`, `gvfs`: useful, but not part of a minimal session.
 - COSMIC's own `cosmic-session`/panel/dock: replaced by Noctalia.
 
-`XDG_CURRENT_DESKTOP=cosmalia:COSMIC` — the `:COSMIC` suffix makes xdg-desktop-portal select the cosmic backend; without it screenshots and screencast have no implementation. `cosmalia` comes first, so `/usr/share/xdg-desktop-portal/cosmalia-portals.conf` is the configuration file xdg-desktop-portal reads (first match wins): it keeps the cosmic backend for screenshots, screencast, remote desktop and settings, and names `gnome` for `FileChooser`.
+`XDG_CURRENT_DESKTOP=cosmalia:COSMIC` — the `:COSMIC` suffix makes xdg-desktop-portal select the cosmic backend (its `.portal` file has `UseIn=COSMIC`) for Settings, RemoteDesktop, and Access. The leading `cosmalia` name makes the portal read `/usr/share/xdg-desktop-portal/cosmalia-portals.conf` (first match wins): it assigns `gtk` for `FileChooser`, `wlr` for `ScreenCast` and `Screenshot`, and falls back to `wlr;gtk` for other interfaces.
 
 ## Files
 
@@ -193,7 +193,7 @@ Deliberately **not** part of the session:
 |---|---|---|
 | `files/usr/bin/cosmalia-session` | same | Session launcher: compositor → wait for socket → import env → restart portals → start session target |
 | `files/usr/share/wayland-sessions/cosmalia.desktop` | same | XDG session entry, listed by the greeter as **Cosmalia** |
-| `files/usr/share/xdg-desktop-portal/cosmalia-portals.conf` | same | Portal selection: GNOME for `FileChooser`, wlr for screenshots/screencast |
+| `files/usr/share/xdg-desktop-portal/cosmalia-portals.conf` | same | Portal selection: GTK for `FileChooser`, wlr for `ScreenCast`/`Screenshot`, cosmic for Settings/RemoteDesktop |
 | `files/usr/lib/systemd/user/cosmalia-session.target` | same | Session target, `BindsTo=graphical-session.target`; pulls in the two services below |
 | `files/usr/lib/systemd/user/noctalia.service` | same | Noctalia under systemd: `Restart=on-failure`, journal logging, `PartOf=` the session target |
 | `files/usr/lib/systemd/user/cosmic-settings-daemon.service` | same | cosmic-config watchers under systemd, same lifecycle |
@@ -217,8 +217,8 @@ The launcher/compositor log is truncated at each login. Noctalia and the setting
 ## Troubleshooting
 
 - **Noctalia doesn't start:** `journalctl --user -b -u noctalia.service`, then `tail "$XDG_RUNTIME_DIR/cosmalia-session.log"`. Check the compositor socket exists with `ss -xlp | grep wayland`.
-- **Screenshots/screencast don't work:** Check `systemctl --user status xdg-desktop-portal.service org.freedesktop.impl.portal.desktop.cosmic.service` and that `XDG_CURRENT_DESKTOP` contains `COSMIC`. Portal logs are in the user journal.
-- **File dialogs look like COSMIC's picker, or don't open:** The GNOME backend must be installed and selected. Check `pacman -Q xdg-desktop-portal-gnome`, `systemctl --user status xdg-desktop-portal-gnome.service` (inactive until first dialog — it's D-Bus activated), and that `/usr/share/xdg-desktop-portal/cosmalia-portals.conf` is present. A `portals.conf` in `~/.config/xdg-desktop-portal/` overrides the packaged one, and a unit drop-in setting `ConditionEnvironment` on the GNOME service skips it entirely.
+- **Screenshots/screencast don't work:** Check `systemctl --user status xdg-desktop-portal.service org.freedesktop.impl.portal.desktop.wlr.service` and that `XDG_CURRENT_DESKTOP` contains `COSMIC`. Portal logs are in the user journal.
+- **File dialogs look like COSMIC's picker, or don't open:** The GTK backend must be installed and selected. Check `pacman -Q xdg-desktop-portal-gtk`, `systemctl --user status xdg-desktop-portal-gtk.service` (inactive until first dialog — it's D-Bus activated), and that `/usr/share/xdg-desktop-portal/cosmalia-portals.conf` is present. A `portals.conf` in `~/.config/xdg-desktop-portal/` overrides the packaged one.
 - **GNOME backend logs `Failed to open service channel Wayland connection` or Nautilus logs `Cannot get portal org.freedesktop.portal.Inhibit version`:** Expected and harmless. No Mutter service channel under cosmic-comp, and `Inhibit` is disabled in `cosmalia-portals.conf` on purpose; the file dialog still opens.
 - **Traffic-light decorations missing:** `pacman -Q cosmic-comp`; `/usr/bin/cosmic-comp` must come from the COSMIC package.
 - **Greeter doesn't default to Cosmalia:** Intentional on install. Run `sudo cosmalia-session-default`, or pick Cosmalia once in the greeter (Noctalia Greeter remembers it).

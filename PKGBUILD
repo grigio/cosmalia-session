@@ -41,26 +41,29 @@ license=(MIT)
 #
 # cosmic-settings-daemon is what serves the cosmic-config watchers (theme,
 # appearance, keybind changes) over D-Bus; without it nothing reloads live.
-# xdg-desktop-portal-gnome is named for FileChooser only, so file dialogs are the
-# GNOME (GTK4/libadwaita) picker. Screenshot and ScreenCast use the wlr
-# backend (xdg-desktop-portal-wlr) because xdg-desktop-portal-cosmic crashes on
-# ext_image_copy_capture_session_v1 protocol errors. xdg-desktop-portal-gtk
-# is what default= falls back to for the interfaces cosmic does not implement.
-# polkit ships polkit-agent-helper-1, the helper used by Noctalia's built-in
-# polkit agent. gnome-keyring provides the Secret Service browsers expect.
-# wireplumber is the PipeWire session manager; pipewire-pulse only requires the
-# virtual pipewire-session-manager, so make the choice explicit.
+# xdg-desktop-portal-gtk provides the GTK4/libadwaita file picker (FileChooser)
+# and serves as the fallback backend for interfaces cosmic doesn't implement.
+# Screenshot and ScreenCast use the wlr backend (xdg-desktop-portal-wlr) because
+# xdg-desktop-portal-cosmic crashes on ext_image_copy_capture_session_v1
+# protocol errors. xdg-desktop-portal-cosmic is listed but commented out as
+# it is currently unstable for screencast/screenshot; it still provides the
+# Settings and RemoteDesktop portals. polkit ships polkit-agent-helper-1, the
+# helper used by Noctalia's built-in polkit agent. gnome-keyring provides the
+# Secret Service browsers expect. wireplumber is the PipeWire session manager;
+# pipewire-pulse only requires the virtual pipewire-session-manager, so make
+the choice explicit.
 depends=(
   cosmic-comp
   noctalia
   cosmic-settings
   cosmic-settings-daemon
   xdg-desktop-portal-wlr
-  xdg-desktop-portal-gnome
+  xdg-desktop-portal-gtk
   polkit
   gnome-keyring
   wireplumber
   cosmic-screenshot
+  # xdg-desktop-portal-cosmic  # unstable for screencast/screenshot; provides Settings, RemoteDesktop
 )
 optdepends=(
   'polkit-gnome: fallback polkit agent when Noctalia built-in agent is disabled'

@@ -16,9 +16,9 @@
 #                                   screen, idle/suspend, polkit agent, MPRIS,
 #                                   screensaver; supervised by systemd
 #   cosmic-settings-daemon.service  cosmic-config watchers; supervised
-#   xdg-desktop-portal + COSMIC impl (restarted below, see the comment)
+#   xdg-desktop-portal + wlr/cosmic impl (restarted below, see the comment)
 # Already covered without starting anything here:
-#   xdg-desktop-portal-gnome        file dialogs (cosmalia-portals.conf);
+#   xdg-desktop-portal-gtk          file dialogs (cosmalia-portals.conf);
 #                                   D-Bus activated, PartOf=graphical-session
 #   dbus-broker                     user bus
 #   pipewire / wireplumber          socket + enabled unit (audio, screencast)
@@ -37,7 +37,7 @@ export XDG_SESSION_DESKTOP=cosmalia
 # (its .portal file has UseIn=COSMIC). Without it no backend matches and
 # screenshots/screencast stop working. The leading "cosmalia" name is what makes
 # the portal read /usr/share/xdg-desktop-portal/cosmalia-portals.conf, which
-# gives FileChooser to the GNOME backend and keeps the rest on cosmic.
+# gives FileChooser to the GTK backend and ScreenCast/Screenshot to wlr.
 export XDG_CURRENT_DESKTOP=cosmalia:COSMIC
 # Keep the user's local bin first for the apps Noctalia spawns, but resolve
 # the session binaries below by absolute path so ~/.local/bin cannot shadow
@@ -70,12 +70,11 @@ for bin in "$comp" "$noctalia" "$settingsd"; do
     fi
 done
 
-# The cosmic-comp-traffic package provides /usr/bin/cosmic-comp (it conflicts
-# with and replaces cosmic-comp), so the binary name is the stock one. Warn
-# instead of refusing to log in if it was swapped back for the unpatched build:
-# `pacman -S cosmic-comp` silently reverts the decorations.
-if ! /usr/bin/pacman -Qq cosmic-comp-traffic >/dev/null 2>&1; then
-    say "warning: cosmic-comp-traffic is not installed, /usr/bin/cosmic-comp is unpatched"
+# Check for traffic-light compositor via binary probe (works regardless of
+# package name or install method). The patched build exports a version string
+# containing "traffic" or we can check for the decoration symbols.
+if ! strings "$comp" 2>/dev/null | grep -q "traffic"; then
+    say "warning: cosmic-comp-traffic not detected, /usr/bin/cosmic-comp may be unpatched"
     say "reinstall cosmic-comp-traffic from https://github.com/grigio/cosmic-comp-traffic/releases"
 fi
 
@@ -112,8 +111,7 @@ fi
 "$comp" $comp_args >>"$log" 2>&1 &
 comp_pid=$!
 
-# On logout the session scope SIGTERMs this script, and even a plain
-# "kill <script>" should not leave the shell and the portals behind.
+# Signal handler: map signal to correct exit code (128 + signo)
 cleanup() {
     # Stopping cosmalia-session.target stops noctalia.service and
     # cosmic-settings-daemon.service: both are PartOf= it and have a short
@@ -121,21 +119,38 @@ cleanup() {
     # before logind tears down the scope.
     /usr/bin/timeout 10 /usr/bin/systemctl --user stop cosmalia-session.target \
         >>"$log" 2>&1 || true
-    # xdg-desktop-portal is PartOf=graphical-session.target; the cosmic
-    # backend has no PartOf=, so stop it explicitly instead of leaving it
-    # behind with a stale WAYLAND_DISPLAY.
+    # Restart portals to avoid stale WAYLAND_DISPLAY. The wlr backend serves
+    # ScreenCast/Screenshot; the cosmic backend serves Settings/RemoteDesktop.
     /usr/bin/timeout 5 /usr/bin/systemctl --user stop \
+        org.freedesktop.impl.portal.desktop.wlr.service \
         org.freedesktop.impl.portal.desktop.cosmic.service >>"$log" 2>&1 || true
     /usr/bin/timeout 10 /usr/bin/systemctl --user stop graphical-session.target \
         >>"$log" 2>&1 || true
 }
-trap 'cleanup; [ -n "${comp_pid:-}" ] && kill "$comp_pid" 2>/dev/null; exit 143' TERM INT HUP
 
-# Find the socket cosmic-comp listens on (it picks wayland-N itself): Noctalia
-# and everything it spawns has to be pointed at that one.
+# Trap with proper exit codes: TERM=143, INT=130, HUP=129
+trap 'cleanup; [ -n "${comp_pid:-}" ] && kill "$comp_pid" 2>/dev/null; exit 143' TERM
+trap 'cleanup; [ -n "${comp_pid:-}" ] && kill "$comp_pid" 2>/dev/null; exit 130' INT
+trap 'cleanup; [ -n "${comp_pid:-}" ] && kill "$comp_pid" 2>/dev/null; exit 129' HUP
+
+# Find the socket cosmic-comp listens on using inotifywait (event-driven,
+# no polling). Falls back to polling if inotifywait is unavailable.
 sock=""
+if command -v inotifywait >/dev/null 2>&1; then
+    # Wait for wayland-* socket creation in XDG_RUNTIME_DIR
+    # inotifywait -e create -t 30 watches for 30 seconds max
+    sock=$(inotifywait -e create -t 30 --format '%f' "$XDG_RUNTIME_DIR" 2>/dev/null | \
+        grep '^wayland-' | head -1)
+    if [ -n "$sock" ] && [ -S "$XDG_RUNTIME_DIR/$sock" ]; then
+        sock="$XDG_RUNTIME_DIR/$sock"
+    else
+        sock=""
+    fi
+fi
+
+# Fallback: polling (original behavior) if inotifywait failed or unavailable
 i=0
-while [ "$i" -lt 300 ] && kill -0 "$comp_pid" 2>/dev/null; do
+while [ -z "$sock" ] && [ "$i" -lt 300 ] && kill -0 "$comp_pid" 2>/dev/null; do
     if [ -x /usr/bin/ss ]; then
         sock=$(/usr/bin/ss -xlHp 2>/dev/null |
             /usr/bin/awk -v p="pid=$comp_pid," 'index($0, p) && $2 == "LISTEN" {print $5; exit}')
@@ -171,17 +186,18 @@ if [ -n "$sock" ]; then
 
     # Both portals are D-Bus activated and may still be running with the
     # previous session's WAYLAND_DISPLAY (the cosmic backend has no PartOf=,
-    # so it survives logout): restarting them costs ~100 ms and avoids a stale
-    # socket. `restart`, not `try-restart`: when the previous compositor died
-    # the backend usually exited too, and try-restart ignores failed units —
-    # that left the portal without a backend for the whole session.
+    # so it survives logout; wlr backend same): restarting them costs ~100 ms
+    # and avoids a stale socket. `restart`, not `try-restart`: when the
+    # previous compositor died the backend usually exited too, and try-restart
+    # ignores failed units — that left the portal without a backend for the
+    # whole session.
     #
-    # Only the cosmic backend is restarted here. xdg-desktop-portal-gnome serves
-    # FileChooser (see /usr/share/xdg-desktop-portal/cosmalia-portals.conf) but
-    # is D-Bus activated and PartOf=graphical-session.target, so it is never
-    # running at this point and cannot hold a stale socket; it starts fresh on
-    # the first file dialog and stops with the session.
+    # xdg-desktop-portal-gtk serves FileChooser (see cosmalia-portals.conf)
+    # but is D-Bus activated and PartOf=graphical-session.target, so it is
+    # never running at this point and cannot hold a stale socket; it starts
+    # fresh on the first file dialog and stops with the session.
     for svc in xdg-desktop-portal.service \
+        org.freedesktop.impl.portal.desktop.wlr.service \
         org.freedesktop.impl.portal.desktop.cosmic.service; do
         /usr/bin/systemctl --user --no-block restart "$svc" >>"$log" 2>&1 || true
     done
@@ -193,7 +209,11 @@ if [ -n "$sock" ]; then
         say "warning: failed to start cosmalia-session.target, see journalctl --user"
     fi
 else
-    say "compositor socket not found, not starting Noctalia"
+    say "compositor socket not found after 30s, killing compositor and exiting"
+    kill "$comp_pid" 2>/dev/null
+    wait "$comp_pid" 2>/dev/null
+    cleanup
+    exit 1
 fi
 
 wait "$comp_pid"

@@ -23,7 +23,8 @@ Requires:       noctalia
 Requires:       cosmic-settings
 Requires:       cosmic-settings-daemon
 Requires:       xdg-desktop-portal-wlr
-Requires:       xdg-desktop-portal-gnome
+Requires:       xdg-desktop-portal-gtk
+Requires:       xdg-desktop-portal-cosmic
 Requires:       polkit
 Requires:       gnome-keyring
 Requires:       wireplumber
@@ -46,6 +47,11 @@ with macOS-style traffic-light decorations, wlr-foreign-toplevel support,
 3-finger workspace swipe, and in-process Alt+Tab) together with Noctalia
 (shell, bar, dock, launcher, notifications, lock screen, idle/suspend handling,
 polkit agent, MPRIS, and screensaver).
+
+Portal backends:
+- xdg-desktop-portal-gtk: FileChooser (GTK4/libadwaita picker) and fallback
+- xdg-desktop-portal-wlr: ScreenCast and Screenshot (cosmic backend crashes)
+- xdg-desktop-portal-cosmic: Settings, RemoteDesktop, Access (screen sharing)
 
 This package installs:
 - The session launcher (/usr/bin/cosmalia-session)

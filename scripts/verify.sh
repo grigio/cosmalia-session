@@ -55,7 +55,6 @@ check_bin wireplumber || ((errors++))
 echo
 echo "Checking portal backends..."
 check_file /usr/share/xdg-desktop-portal/portals/cosmic.portal || ((errors++))
-check_file /usr/share/xdg-desktop-portal/portals/gnome.portal || ((errors++))
 check_file /usr/share/xdg-desktop-portal/portals/gtk.portal || ((errors++))
 check_file /usr/share/xdg-desktop-portal/portals/wlr.portal || ((errors++))
 check_file /usr/share/xdg-desktop-portal/portals/gnome-keyring.portal || ((errors++))

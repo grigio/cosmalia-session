@@ -65,7 +65,8 @@ jobs:
             cosmic-settings \
             cosmic-settings-daemon \
             xdg-desktop-portal-wlr \
-            xdg-desktop-portal-gnome \
+            xdg-desktop-portal-gtk \
+            xdg-desktop-portal-cosmic \
             polkit \
             gnome-keyring \
             wireplumber \
@@ -171,7 +172,8 @@ jobs:
 
           Needs \`cosmic-comp\`, \`noctalia\`, \`cosmic-settings\`,
           \`cosmic-settings-daemon\`, \`cosmic-screenshot\`,
-          \`xdg-desktop-portal-cosmic\`, \`xdg-desktop-portal-gnome\`, \`polkit\`,
+          \`xdg-desktop-portal-cosmic\`, \`xdg-desktop-portal-gtk\`,
+          \`xdg-desktop-portal-wlr\`, \`polkit\`,
           \`gnome-keyring\` and \`wireplumber\`. The package replaces the old
           \`cosmic-comp-traffic-session\` package.
 

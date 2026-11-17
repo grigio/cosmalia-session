@@ -81,7 +81,7 @@ in
     # (if using home-manager, these can be managed there instead)
     xdg.desktopPortal = {
       enable = true;
-      extraPortals = [ pkgs.xdg-desktop-portal-gnome pkgs.xdg-desktop-portal-wlr ];
+      extraPortals = [ pkgs.xdg-desktop-portal-gtk pkgs.xdg-desktop-portal-wlr pkgs.xdg-desktop-portal-cosmic ];
     };
 
     # Session-specific environment variables

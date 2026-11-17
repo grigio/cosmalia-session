@@ -62,23 +62,30 @@ if ! pacman -Qq cosmic-comp-traffic >/dev/null 2>&1; then
     echo "         https://github.com/grigio/cosmic-comp-traffic/releases" >&2
 fi
 
-# cosmalia-portals.conf selects this backend for FileChooser. Without it the
-# portal falls back to the cosmic picker, so the GNOME dialog never appears.
-if ! pacman -Qq xdg-desktop-portal-gnome >/dev/null 2>&1; then
-    echo "warning: xdg-desktop-portal-gnome is not installed; file dialogs will" >&2
-    echo "         use the COSMIC picker. Install it with:" >&2
-    echo "         sudo pacman -S xdg-desktop-portal-gnome" >&2
+# cosmalia-portals.conf selects GTK backend for FileChooser and wlr for
+# ScreenCast/Screenshot. Both are hard dependencies now.
+for portal in xdg-desktop-portal-gtk xdg-desktop-portal-wlr; do
+    if ! pacman -Qq "$portal" >/dev/null 2>&1; then
+        echo "error: $portal is not installed; required for file dialogs (gtk) and" >&2
+        echo "       screencast/screenshot (wlr). Install with:" >&2
+        echo "       sudo pacman -S $portal" >&2
+        exit 1
+    fi
+done
+
+# Verify portal configuration exists (will be installed below, but check early)
+if [[ ! -f "$src/usr/share/xdg-desktop-portal/cosmalia-portals.conf" ]]; then
+    echo "error: source portal config missing at $src/usr/share/xdg-desktop-portal/cosmalia-portals.conf" >&2
+    exit 1
 fi
 
-# Verify portal configuration
-if [[ ! -f /usr/share/xdg-desktop-portal/cosmalia-portals.conf ]]; then
-    echo "warning: /usr/share/xdg-desktop-portal/cosmalia-portals.conf is missing" >&2
-fi
-
+# Install files from $src to /, deriving permissions from source file mode
+# (matches what `cp -a` in PKGBUILD does). This avoids the */bin/* heuristic
+# diverging from git's executable bits.
 while IFS= read -r -d '' f; do
     rel=${f#"$src"/}
-    perm=644
-    case $rel in */bin/*) perm=755 ;; esac
+    # Get permissions from source file (octal, e.g. 755, 644)
+    perm=$(stat -c '%a' "$f")
     printf 'install -m%s %s\n' "$perm" "/$rel"
     sudo install -D -o root -g root -m "$perm" "$f" "/$rel"
 done < <(find "$src" -type f -print0 | sort -z)
@@ -94,6 +101,13 @@ sudo install -D -o root -g root -m 644 "$root/LICENSE" \
 
 systemctl --user daemon-reload
 echo "reloaded the systemd user manager"
+
+# Run verification if available
+if [[ -x "$root/scripts/verify.sh" ]]; then
+    echo "running verification..."
+    "$root/scripts/verify.sh"
+fi
+
 echo
 echo "Cosmalia is installed but was NOT made the greeter default."
 echo "Greeters that read /usr/share/wayland-sessions list it already; gtkgreet"

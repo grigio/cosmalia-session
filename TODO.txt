@@ -1,0 +1,27 @@
+The biggest improvement is fixing a real contradiction: PKGBUILD depends on xdg-desktop-portal-wlr and claims it serves Screenshot/ScreenCast, while README.md says wlr is deliberately not installed and the cosmic backend serves those interfaces. Beyond that, the launcher's socket-discovery polling loop and the duplicated install logic in scripts/install.sh are the main fragility points.
+
+Concrete improvements
+1. Fix the portal backend contradiction (likely a bug)
+PKGBUILD lists xdg-desktop-portal-wlr in depends and its comment says Screenshot/ScreenCast use the wlr backend because the cosmic backend crashes PKGBUILD:40-58 . But README.md explicitly says xdg-desktop-portal-wlr is "not installed" and that the cosmic backend handles screenshots, screencast, remote desktop and settings README.md:259-262 README.md:276-282 . The launcher also restarts org.freedesktop.impl.portal.desktop.cosmic.service specifically so screencast works cosmalia-session:165-180 .
+
+Either drop xdg-desktop-portal-wlr from depends (matching the README), or update the README if the wlr backend was re-adopted.
+Relatedly, xdg-desktop-portal-cosmic is not in depends at all, even though the session restarts it and the README treats it as required for screenshots/screencast PKGBUILD:48-58 . If it's only pulled in transitively via cosmic-comp, making it explicit would prevent a silent breakage.
+2. Replace the socket polling loop with event-driven discovery
+The launcher polls ss -xlHp (or find -newer) in a 300-iteration loop with sleep 0.1 to find the Wayland socket cosmalia-session:129-146 . Improvements:
+
+Use inotifywait/inotifywatch on $XDG_RUNTIME_DIR for wayland-* creation instead of polling — faster startup and no 30 s ceiling.
+Alternatively, have cosmic-comp write its socket name to a known file, or use systemd socket activation so WAYLAND_DISPLAY is deterministic.
+sleep 0.1 relies on GNU sleep fractional support; fine on Arch, but worth noting if portability is ever a goal.
+3. Deduplicate install logic between install.sh and PKGBUILD
+scripts/install.sh re-implements file copying, permission mapping (*/bin/* → 755), helper install, and docs install install.sh:73-88 that package() already does via cp -a and install -D PKGBUILD:71-84 . The permission heuristic in install.sh (*/bin/* → 755) can diverge from git's executable bits that cp -a preserves — e.g., a future executable file outside bin/ would be installed 644 by the script but 755 by the package. Consider having install.sh delegate to a shared manifest or derive permissions from the file mode (stat -c %a).
+
+4. Harden the launcher
+The pacman -Qq cosmic-comp-traffic check is Arch-specific cosmalia-session:77-80 ; acceptable for an Arch package, but a --version/feature-probe on the compositor binary would be more robust (e.g., detecting the traffic-light build directly rather than via the package database, which lies if the user installed it via makepkg -efi under a different name or copied the binary manually).
+The cleanup trap hardcodes exit 143 for TERM/INT/HUP cosmalia-session:110-125 ; mapping the actual signal (128+SIGINT=130, etc.) would be more correct for callers inspecting exit status.
+If the compositor socket is never found, the script still waits on comp_pid forever cosmalia-session:188-192 ; consider killing the compositor and exiting non-zero so the greeter can fail the login cleanly.
+5. Documentation drift
+The wiki Overview table lists xdg-desktop-portal-wlr as the screencast/screenshot backend PKGBUILD:53 , inheriting the PKGBUILD/README contradiction — resolving item 1 fixes the docs too. The README is otherwise unusually thorough (troubleshooting, reverting, greeter internals), so keeping a single source of truth for "which portal serves which interface" (e.g., only in cosmalia-portals.conf comments) would prevent recurrence.
+
+Notes
+I only had access to README.md, files/usr/bin/cosmalia-session, PKGBUILD, and scripts/install.sh; cosmalia-portals.conf, the systemd units, and set-default-greetd.sh weren't in context, so there may be additional improvements there I can't see.
+The wlr-vs-cosmic portal discrepancy is the one item that looks like an actual bug rather than a style improvement — worth confirming which backend is intended before changing anything else.

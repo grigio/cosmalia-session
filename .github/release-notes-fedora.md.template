@@ -26,7 +26,7 @@ sudo cosmalia-session-default
 Needs `cosmic-comp` (provided by cosmic-comp-traffic), `noctalia`,
 `cosmic-settings`, `cosmic-settings-daemon`, `cosmic-screenshot`,
 `xdg-desktop-portal-cosmic`, `xdg-desktop-portal-wlr`,
-`xdg-desktop-portal-gnome`, `polkit`, `gnome-keyring` and
+`xdg-desktop-portal-gtk`, `polkit`, `gnome-keyring` and
 `wireplumber`. The package replaces the old
 `cosmic-comp-traffic-session` package.
 
