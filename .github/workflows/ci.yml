@@ -77,11 +77,12 @@ jobs:
 
           # Install cosmic-comp-traffic from GitHub release (epoch-1.11.0)
           # cosmalia-session 1.3.4 uses cosmic-comp-traffic 1.11.0
+          # Use --noscriptlet to skip post-install hook that fails in container
           gh release download "epoch-1.11.0" \
             --repo grigio/cosmic-comp-traffic \
             --pattern '*.pkg.tar.zst' \
             --dir /tmp
-          pacman -U --noconfirm /tmp/cosmic-comp-traffic-*.pkg.tar.zst
+          pacman -U --noconfirm --noscriptlet /tmp/cosmic-comp-traffic-*.pkg.tar.zst
 
       - uses: actions/checkout@v6
 
