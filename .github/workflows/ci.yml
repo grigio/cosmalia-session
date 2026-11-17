@@ -77,10 +77,12 @@ jobs:
 
           # Get version from VERSION file to download matching cosmic-comp-traffic
           version=$(cat VERSION)
-          pkgver=$(echo $version | sed 's/\./-/g')
-          curl -L -o /tmp/cosmic-comp-traffic.pkg.tar.zst \
-            "https://github.com/grigio/cosmic-comp-traffic/releases/download/epoch-${version}/cosmic-comp-traffic-${version}-${pkgver}-x86_64.pkg.tar.zst"
-          pacman -U --noconfirm /tmp/cosmic-comp-traffic.pkg.tar.zst
+          # Use gh to download the .pkg.tar.zst asset from the epoch-${version} release
+          gh release download "epoch-${version}" \
+            --repo grigio/cosmic-comp-traffic \
+            --pattern '*.pkg.tar.zst' \
+            --dir /tmp
+          pacman -U --noconfirm /tmp/cosmic-comp-traffic-*.pkg.tar.zst
 
       - uses: actions/checkout@v6
 
