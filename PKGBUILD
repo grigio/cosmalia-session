@@ -25,7 +25,7 @@
 
 pkgname=cosmalia-session
 pkgver=${SESSION_VERSION:-$(git -C "${startdir:-$PWD}" describe --tags --abbrev=0 2>/dev/null | sed 's/^v//')}
-pkgver=${pkgver:-1.3.3}
+pkgver=${pkgver:-1.3.4}
 _pkgrel=$(git -C "${startdir:-$PWD}" rev-list --count HEAD -- \
   PKGBUILD cosmalia-session.install files README.md LICENSE \
   scripts/set-default-greetd.sh 2>/dev/null || true)
@@ -57,7 +57,7 @@ license=(MIT)
 # components: Screenshot/ScreenCast go through xdg-desktop-portal-wlr. They are
 # listed as optional below.
 depends=(
-  cosmic-comp
+  cosmic-comp-traffic
   noctalia
   cosmic-settings-daemon
   xdg-desktop-portal-wlr
