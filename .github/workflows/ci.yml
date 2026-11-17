@@ -76,9 +76,9 @@ jobs:
             wireplumber
 
           # Get version from VERSION file to download matching cosmic-comp-traffic
-          version=$(cat VERSION)
-          # Use gh to download the .pkg.tar.zst asset from the epoch-${version} release
-          gh release download "epoch-${version}" \
+          # cosmalia-session 1.3.4 uses cosmic-comp-traffic 1.11.0 (epoch-1.11.0)
+          cosmic_comp_version=1.11.0
+          gh release download "epoch-${cosmic_comp_version}" \
             --repo grigio/cosmic-comp-traffic \
             --pattern '*.pkg.tar.zst' \
             --dir /tmp
