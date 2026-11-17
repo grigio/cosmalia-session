@@ -1,361 +1,173 @@
-# Cosmalia — A Modern, Minimal Linux Desktop Under 1 GB RAM
+# Cosmalia — A Minimal COSMIC Desktop Under 1 GB RAM
 
-![Cosmalia Desktop](./docs/cosmalia.gif)
+Cosmalia is a lightweight Wayland desktop combining:
 
-Cosmalia is a lightweight, modern Linux desktop that runs in under 1 GB of RAM. It combines two projects:
+- **cosmic-comp-traffic** — COSMIC compositor with macOS-style traffic-light buttons, Wayland blur, 3-finger workspace swipes, in-process Alt+Tab
+- **Noctalia** — Shell (bar, dock, launcher, notifications, lock screen, idle/suspend, MPRIS, polkit agent, screensaver)
 
-- **cosmic-comp** — the COSMIC compositor with macOS-style traffic-light window buttons, Wayland blur, animations, 3-finger workspace swipes, and built-in Alt+Tab
-- **Noctalia** — the shell: bar, dock, launcher, notifications, networking, lock screen, idle/suspend, MPRIS, screensaver, and a polkit agent
-
-The `cosmalia-session` package ties them together as an XDG session. It appears in any Wayland login manager (greetd, GDM, SDDM, etc.). The login manager itself is up to you.
-
-Installing Cosmalia won't change your default session. It's available to pick, but your current default stays put. Making it the default is a separate, explicit step (see [Making it the greeter default](#making-it-the-greeter-default)).
-
-## The Stack
-
-![Cosmalia active services](./docs/cosmalia-promo.png)
-
-| Component | Job |
-|---|---|
-| `cosmic-comp` | Wayland compositor; installs as `/usr/bin/cosmic-comp` |
-| `noctalia` | Bar, dock, launcher, notifications, networking, lock screen, idle/suspend, MPRIS, polkit agent, screensaver |
-| `cosmalia-session` | This package: session launcher, XDG session entry, systemd user units, optional greeter helper |
-| `xdg-desktop-portal-cosmic` | Portal backend for Settings, RemoteDesktop, Access (screen sharing); screencast/screenshot unstable |
-| `xdg-desktop-portal-gtk` | Portal backend for FileChooser (GTK4/libadwaita picker) and fallback for unimplemented interfaces |
-| `xdg-desktop-portal-wlr` | Portal backend for ScreenCast and Screenshot (cosmic backend crashes on ext_image_copy_capture_session_v1) |
-| `cosmic-settings-daemon` | Watches cosmic-config changes so theme, appearance, and keybind edits apply live |
-| `polkit` | Provides `polkit-agent-helper-1` for the polkit agent |
-| `gnome-keyring` | Secret Service for browsers and apps; unlocked by PAM at login |
-
-Optional (declared as `optdepends`/`Recommends`, not needed to start the session):
-
-| Package | Why you might want it |
-|---|---|
-| `cosmic-settings` | GUI app for COSMIC settings; launches on demand |
-| `cosmic-screenshot` | Screenshot app; the session itself screenshots through the portal |
-| `inotify-tools` | Event-driven Wayland socket detection in the launcher; without it the launcher falls back to polling |
-| `polkit-gnome` | Fallback polkit agent; Noctalia already registers one, so run only one |
-| `zram-generator` | Compressed RAM swap (see below) |
-| `systemd-oomd` | Userspace OOM killer for memory pressure |
-
-Not included — install separately if needed: `voxtype` (voice typing), `syncthing` (file sync), `gvfs` (trash, recent files, MTP/network mounts). Some COSMIC features need extra components; this session stays minimal on purpose.
-
-### zram-generator (recommended for < 1 GB RAM)
-
-The `zram-generator` optdepend provides compressed RAM swap, which helps stay under the 1 GB target. Example config at `/etc/systemd/zram-generator.conf`:
-
-```ini
-[zram0]
-zram-size = min(ram, 4096)
-compression-algorithm = zstd
-swap-priority = 100
-```
-
-Enable with `sudo systemctl enable --now systemd-zram-setup@zram0.service`.
-
-The `cosmic-comp` package provides the COSMIC compositor with traffic-light window buttons. To switch to a different compositor: `sudo pacman -S <compositor>`.
+This package provides the session glue: launcher, XDG session entry, systemd user units, portal config, and an optional greeter helper.
 
 ## Install
 
-Three ways, all installing the same files — use one, and prefer the package so pacman owns `/usr`:
-
+### Arch Linux
 ```sh
-# A) the published package (recommended)
+# From GitHub release (recommended)
 gh release download --latest -R grigio/cosmalia-session \
-  -p '*.pkg.tar.zst*' -D /tmp/cosmalia-session
-cd /tmp/cosmalia-session && sha256sum -c ./*.pkg.tar.zst.sha256
-sudo pacman -U ./*.pkg.tar.zst
-# Cosmalia is installed, but NOT the default.
-sudo cosmalia-session-default        # optional: make it the default
+  -p '*.pkg.tar.zst' -D /tmp/cosmalia-session
+sudo pacman -U /tmp/cosmalia-session/*.pkg.tar.zst
 
-# B) build it locally from this checkout
+# Or build locally
 makepkg -fi
-sudo cosmalia-session-default        # optional: make it the default
-
-# C) straight from the checkout, no package
-./scripts/install.sh                 # session + helper + docs, not default
-./scripts/install.sh --default       # ... and make it the default
 ```
 
 ### Fedora
-
 ```sh
-# A) the published package (recommended)
+# From GitHub release (recommended)
 gh release download --latest -R grigio/cosmalia-session \
   -p '*.rpm' -D /tmp/cosmalia-session
-cd /tmp/cosmalia-session && sha256sum -c ./*.rpm.sha256
-sudo dnf install ./cosmalia-session-*.noarch.rpm
-# Cosmalia is installed, but NOT the default.
-sudo cosmalia-session-default        # optional: make it the default
+sudo dnf install /tmp/cosmalia-session/*.rpm
 
-# B) build it locally from this checkout
+# Or build locally
 rpmbuild -ba cosmalia-session.spec
 sudo dnf install ~/rpmbuild/RPMS/noarch/cosmalia-session-*.noarch.rpm
-sudo cosmalia-session-default        # optional: make it the default
-
-# C) straight from the checkout, no package
-./scripts/install.sh                 # session + helper + docs, not default
-./scripts/install.sh --default       # ... and make it the default
 ```
 
-None of these edit `/etc/greetd` unless you pass `--default` or run `cosmalia-session-default`. Greeters that read `/usr/share/wayland-sessions` (Noctalia Greeter, GDM, SDDM) list Cosmalia immediately; gtkgreet only lists `/etc/greetd/environments` plus its `-c` argument. To add Cosmalia to a gtkgreet dropdown without changing the default:
+### NixOS
+```nix
+# flake.nix
+{
+  inputs = { cosmalia-session.url = "github:grigio/cosmalia-session"; };
+  outputs = { self, nixpkgs, cosmalia-session, ... }: {
+    nixosConfigurations.your-host = nixpkgs.lib.nixosSystem {
+      system = "x86_64-linux";
+      modules = [
+        cosmalia-session.nixosModules.cosmalia-session
+        ({ config, ... }: { services.cosmalia-session.enable = true; })
+      ];
+    };
+  };
+}
+```
+
+## After Install
+
+Cosmalia appears in your greeter (greetd, GDM, SDDM, etc.) as **Cosmalia** but is **not** the default. To make it default:
+
+```sh
+sudo cosmalia-session-default
+```
+
+To only add it to gtkgreet's dropdown without changing the default:
 
 ```sh
 sudo cosmalia-session-default --list
 ```
 
-See [Making it the greeter default](#making-it-the-greeter-default) for the default itself.
+## Requirements
 
-`install.sh` errors if `cosmic-comp`, `xdg-desktop-portal-gtk`, or `xdg-desktop-portal-wlr` are not installed (required for compositor, file dialogs, and screencast/screenshot). The session itself also checks the compositor at login and logs a warning. It refuses to run as root, and refuses if either `cosmalia-session` or the old `cosmic-comp-traffic-session` package is installed, so pacman's file list stays accurate.
+| Package | Role |
+|---------|------|
+| `cosmic-comp-traffic` | Compositor (traffic lights, gestures, Alt+Tab) |
+| `noctalia` | Shell: bar, dock, launcher, lock, notifications, polkit |
+| `cosmic-settings-daemon` | Live theme/keybind updates |
+| `xdg-desktop-portal-wlr` | Screencast/Screenshot portal |
+| `xdg-desktop-portal-cosmic` | Settings/RemoteDesktop portal |
+| `xdg-desktop-portal-gtk` | FileChooser (GTK4 picker) |
+| `polkit`, `gnome-keyring`, `wireplumber` | System integration |
 
-### The package
-
-#### Arch Linux
-
-`arch=(any)`, no sources (it packages this tree). It installs the launcher, the XDG session entry, the session target, the two services, the portal configuration, the greeter helper, and the docs under `/usr/share/doc/cosmalia-session/`.
-
-`pkgver` comes from the nearest `v<major>.<minor>.<patch>` tag and `pkgrel` from the number of commits that touched packaged files, so a local `makepkg` matches the CI-built package for the same commit. Both can be overridden:
-
-```sh
-SESSION_VERSION=1.3.3 SESSION_PKGREL=12 makepkg -f
-```
-
-Every `v*` tag is built by `.github/workflows/arch-package.yml` in an `archlinux:base-devel` container and attached to its GitHub release. A rebuild of the same tag still works because `pkgrel` is part of the filename.
-
-#### Versioning
-
-`VERSION` is the single source of truth for the release version (currently `1.3.3`). The Nix flake reads it for `packages.cosmalia-session.version`, the PKGBUILD uses it as its no-git fallback, and both release workflows refuse to publish a tag whose `v<version>` does not match it. `scripts/check-version.sh` runs in CI on every push/PR and again in each release job, so a backwards or mismatched version bump fails the build instead of shipping.
-
-`cosmic-comp` is in the official repositories, so `makepkg` works without `--nodeps`. `noctalia` and the COSMIC packages are in `extra`; on CachyOS the CachyOS repositories carry the same packages.
-
-The post-install message tells you Cosmalia was **not** made the default, how to add it to a gtkgreet dropdown, and how to make it the default; `pre_remove` warns to point the greeter at another session first.
-
-#### Fedora
-
-The Fedora RPM package is built from `cosmalia-session.spec` by `.github/workflows/fedora-package.yml` in a `fedora:latest` container. It installs the same files with Fedora paths (`/usr/lib/systemd/user/` for user units). Version comes from the tag and release from git history (same scheme as Arch). Every `v*` tag produces a noarch RPM and a source RPM attached to the GitHub release.
-
-Required COSMIC dependencies (`cosmic-comp`, `noctalia`, `cosmic-settings-daemon`, `xdg-desktop-portal-gtk`, `xdg-desktop-portal-wlr`, `xdg-desktop-portal-cosmic`) are available in Fedora repositories. `cosmic-settings`, `cosmic-screenshot`, `inotify-tools`, `polkit-gnome`, `zram-generator` and `systemd-oomd` are optional `Recommends`. It `Obsoletes`/`Conflicts` with the old `cosmic-comp-traffic-session` package.
-
-### Upgrading from `cosmic-comp-traffic-session`
-
-The package `provides`, `replaces` and `conflicts` with the old name, so installing `cosmalia-session` replaces the old package and removes its `cosmic-comp-traffic.desktop`, launcher and systemd target. `cosmalia-session-default` also drops the old launcher from `/etc/greetd/environments`, so the greeter doesn't list a dead entry. If you installed with `scripts/install.sh` instead, delete the old files by hand:
-
-```sh
-sudo rm /usr/share/wayland-sessions/cosmic-comp-traffic.desktop \
-        /usr/local/bin/cosmic-comp-traffic-session \
-        /usr/lib/systemd/user/cosmic-comp-traffic-session.target
-systemctl --user daemon-reload
-```
+Optional (Recommends): `cosmic-settings`, `cosmic-screenshot`, `inotify-tools`, `polkit-gnome`, `zram-generator`, `systemd-oomd`
 
 ## What Runs
 
-Started by the session, deliberately:
+Started by the session target (`cosmalia-session.target`):
+- `cosmic-comp --no-xwayland` — compositor
+- `noctalia.service` — shell (restarted on failure)
+- `cosmic-settings-daemon.service` — config watchers
+- `xdg-desktop-portal` + wlr/cosmic backends — restarted per login
 
-| Piece | Job |
-|---|---|
-| `cosmic-comp --no-xwayland` | Compositor (traffic lights, soft focus ring, `zwlr_foreign_toplevel_manager_v1`, 3-finger workspace swipe, in-process Alt+Tab) |
-| `noctalia.service` | Bar, dock, launcher, notifications, lock screen, idle/suspend, MPRIS, polkit agent, screensaver; systemd restarts on failure |
-| `cosmic-settings-daemon.service` | cosmic-config watchers: live theme, appearance and keybind changes |
-| `xdg-desktop-portal` + `xdg-desktop-portal-wlr` + `xdg-desktop-portal-cosmic` | Restarted per login: wlr backend (ScreenCast/Screenshot) and cosmic backend (Settings/RemoteDesktop) have no `PartOf=graphical-session.target`, so they survive logout and would otherwise keep a stale `WAYLAND_DISPLAY` |
+Not started by the session (D-Bus/system activated): `xdg-desktop-portal-gtk`, `pipewire`/`wireplumber`, `gnome-keyring`, `gvfs` (if installed)
 
-The two services are `PartOf=cosmalia-session.target`, so logout stops them with the target. They log to the journal and are not enabled in the user manager; starting the target is enough.
+## Configuration
 
-Already covered without starting anything here:
+### Portal selection
+`/usr/share/xdg-desktop-portal/cosmalia-portals.conf` routes:
+- `FileChooser` → GTK backend
+- `ScreenCast`/`Screenshot` → wlr backend
+- `Settings`/`RemoteDesktop`/`Access` → cosmic backend
 
-| Piece | Why it needs no session entry |
-|---|---|
-| `xdg-desktop-portal-gtk` | D-Bus activated by the first file dialog and stopped by `PartOf=graphical-session.target` — no session entry needed, never holds a stale socket |
-| D-Bus user bus (`dbus-broker`/`dbus-daemon`) | Started by the user manager |
-| `pipewire`, `wireplumber` | Socket + enabled unit; audio and screencast |
-| `gnome-keyring-daemon` | D-Bus/socket activated; PAM unlocks it at login (see below) |
-| `gvfs-*`, `xdg-document-portal` | D-Bus activated on first use, if installed |
-| `upower`, `power-profiles-daemon`, NetworkManager | System services, session agnostic |
-
-The keyring is unlocked by PAM at login. Make sure your display manager's PAM file (`/etc/pam.d/greetd`, `/etc/pam.d/gdm-password`, …) loads `pam_gnome_keyring.so`; the current greetd config already does.
-
-`cosmic-settings` and `cosmic-screenshot` are optional applications: they launch on demand, not by the session. Install them only if you want the GUI settings app or a standalone screenshot tool.
-
-The compositor runs with `--no-xwayland` by default for security and resource usage. To enable XWayland (for legacy X11 apps), set `COSMALIA_NO_XWAYLAND=0` in your environment before starting the session (e.g., in `~/.profile` or a systemd drop-in).
-
-### Systemd drop-in for XWayland
-
-Create `/etc/systemd/user/cosmalia-session.target.d/xwayland.conf` (or user-local `~/.config/systemd/user/...`):
-
-```ini
-[Service]
-Environment=COSMALIA_NO_XWAYLAND=0
+### XWayland
+Disabled by default. Enable with:
+```sh
+mkdir -p ~/.config/systemd/user/cosmalia-session.target.d
+echo -e '[Service]\nEnvironment=COSMALIA_NO_XWAYLAND=0' > ~/.config/systemd/user/cosmalia-session.target.d/xwayland.conf
+systemctl --user daemon-reload
 ```
 
-Then `systemctl --user daemon-reload`. This affects only the session target, not the whole user environment.
-
-Deliberately **not** part of the session:
-
-- `xdg-desktop-portal-gnome`: not installed for its non-FileChooser interfaces. Its `.portal` file declares interfaces (Notification, Clipboard, GlobalShortcuts, InputCapture, Usb) that require gnome-shell's Mutter service channel, which no Cosmalia session runs. The GTK backend (`xdg-desktop-portal-gtk`) provides the GTK4/libadwaita file picker (FileChooser) and serves as the fallback for interfaces cosmic doesn't implement.
-- `gnome-keyring` in the session target: it must outlive the graphical session. Only one Secret Service provider may run; `oo7` or `keepassxc` are drop-in alternatives (`org.freedesktop.secrets`), gnome-keyring is what COSMIC itself pairs with.
-- `polkit-gnome`: Noctalia registers its own polkit agent, so starting `polkit-gnome` too would give two agents. Keep it as a fallback for setups where Noctalia's agent is disabled; run `polkit-gnome-authentication-agent-1` at login in that case.
-- `noctalia-labwc-sync.path`, `labwc-4finger-gestures.service`: labwc only (`ConditionEnvironment`, `wtype`); cosmic-comp handles both natively.
-- `voxtype`, `syncthing`, `gvfs`: useful, but not part of a minimal session.
-- COSMIC's own `cosmic-session`/panel/dock: replaced by Noctalia.
-
-`XDG_CURRENT_DESKTOP=cosmalia:COSMIC` — the `:COSMIC` suffix makes xdg-desktop-portal select the cosmic backend (its `.portal` file has `UseIn=COSMIC`) for Settings, RemoteDesktop, and Access. The leading `cosmalia` name makes the portal read `/usr/share/xdg-desktop-portal/cosmalia-portals.conf` (first match wins): it assigns `gtk` for `FileChooser`, `wlr` for `ScreenCast` and `Screenshot`, and falls back to `wlr;gtk` for other interfaces.
-
-## Files
-
-| Repo path | Installed to | What |
-|---|---|---|
-| `files/usr/bin/cosmalia-session` | same | Session launcher: compositor → wait for socket → import env → restart portals → start session target |
-| `files/usr/share/wayland-sessions/cosmalia.desktop` | same | XDG session entry, listed by the greeter as **Cosmalia** |
-| `files/usr/share/xdg-desktop-portal/cosmalia-portals.conf` | same | Portal selection: GTK for `FileChooser`, wlr for `ScreenCast`/`Screenshot`, cosmic for Settings/RemoteDesktop |
-| `files/usr/lib/systemd/user/cosmalia-session.target` | same | Session target, `BindsTo=graphical-session.target`; pulls in the two services below |
-| `files/usr/lib/systemd/user/noctalia.service` | same | Noctalia under systemd: `Restart=on-failure`, journal logging, `PartOf=` the session target |
-| `files/usr/lib/systemd/user/cosmic-settings-daemon.service` | same | cosmic-config watchers under systemd, same lifecycle |
-| `VERSION` | — | Single source of truth for the release version (read by flake, PKGBUILD fallback and CI) |
-| `files.manifest` | — | Canonical installed-file list, checked against the sources and RPM `%files` |
-| `scripts/check-version.sh` | — | Validates VERSION against git tags and the release tag |
-| `scripts/check-manifest.sh` | — | Validates `files.manifest` against all packagers |
-| `scripts/test-set-default-greetd.sh` | — | Tests the `-c` rewrite / `--list` logic of the greeter helper (run as root) |
-| `tests/nixos/cosmalia-session.nix` | — | NixOS VM test: boots the module and asserts installed files, units and greetd wiring |
-| `scripts/install.sh` | — | Copies session files, helper, and docs onto `/` |
-| `scripts/verify.sh` | — | Verifies installation (binaries, units, portal config, session entry) |
-| `scripts/set-default-greetd.sh` | `/usr/bin/cosmalia-session-default` | Opt-in: preselects the session in gtkgreet (or with `--list`, only lists it) |
-| `PKGBUILD`, `cosmalia-session.install` | — | Package, built from this tree by CI on every `v*` tag |
-| `.github/workflows/arch-package.yml` | — | Builds and publishes the package for a release tag |
-
-The repo layout mirrors `/`, so installing is a copy and the files can be diffed against the live ones at any time.
+### zram (for < 1 GB RAM)
+```sh
+sudo dnf install zram-generator
+echo -e '[zram0]\nzram-size = min(ram, 4096)\ncompression-algorithm = zstd\nswap-priority = 100' | sudo tee /etc/systemd/zram-generator.conf
+sudo systemctl enable --now systemd-zram-setup@zram0.service
+```
 
 ## Logs
 
 ```sh
-tail -f "$XDG_RUNTIME_DIR/cosmalia-session.log"   # launcher + compositor
+# Compositor/launcher
+tail -f "$XDG_RUNTIME_DIR/cosmalia-session.log"
+
+# Shell & settings daemon
 journalctl --user -b -u noctalia.service -u cosmic-settings-daemon.service
 ```
 
-The launcher/compositor log is truncated at each login. Noctalia and the settings daemon write to the journal, so nothing on the runtime tmpfs grows for the whole session.
-
 ## Troubleshooting
 
-- **Noctalia doesn't start:** `journalctl --user -b -u noctalia.service`, then `tail "$XDG_RUNTIME_DIR/cosmalia-session.log"`. Check the compositor socket exists with `ss -xlp | grep wayland`.
-- **Screenshots/screencast don't work:** Check `systemctl --user status xdg-desktop-portal.service org.freedesktop.impl.portal.desktop.wlr.service` and that `XDG_CURRENT_DESKTOP` contains `COSMIC`. Portal logs are in the user journal.
-- **File dialogs look like COSMIC's picker, or don't open:** The GTK backend must be installed and selected. Check `pacman -Q xdg-desktop-portal-gtk`, `systemctl --user status xdg-desktop-portal-gtk.service` (inactive until first dialog — it's D-Bus activated), and that `/usr/share/xdg-desktop-portal/cosmalia-portals.conf` is present. A `portals.conf` in `~/.config/xdg-desktop-portal/` overrides the packaged one.
-- **GNOME backend logs `Failed to open service channel Wayland connection` or Nautilus logs `Cannot get portal org.freedesktop.portal.Inhibit version`:** Expected and harmless. No Mutter service channel under cosmic-comp, and `Inhibit` is disabled in `cosmalia-portals.conf` on purpose; the file dialog still opens.
-- **Traffic-light decorations missing:** `pacman -Q cosmic-comp`; `/usr/bin/cosmic-comp` must come from the COSMIC package.
-- **Greeter doesn't default to Cosmalia:** Intentional on install. Run `sudo cosmalia-session-default`, or pick Cosmalia once in the greeter (Noctalia Greeter remembers it).
-- **Session log missing:** `XDG_RUNTIME_DIR` must exist; launch the session from a logind login, not a bare console.
+| Issue | Check |
+|-------|-------|
+| Noctalia won't start | `journalctl --user -b -u noctalia.service` |
+| Screenshots fail | `systemctl --user status xdg-desktop-portal.service org.freedesktop.impl.portal.desktop.wlr.service` |
+| File dialogs broken | `pacman -Q xdg-desktop-portal-gtk` and check `cosmalia-portals.conf` exists |
+| Traffic lights missing | `pacman -Q cosmic-comp-traffic` — must provide `/usr/bin/cosmic-comp` |
+| Greeter doesn't default | Run `sudo cosmalia-session-default` |
 
-## Reverting
+## Uninstall
 
 ```sh
-# Back to previous greeter default (labwc) or any earlier one:
-sudo cp -a /etc/greetd/config.toml.bak.<timestamp> /etc/greetd/config.toml
-sudo cp -a /etc/greetd/environments.bak.<timestamp> /etc/greetd/environments
-
-# Remove the session (package install):
+# Arch
 sudo pacman -R cosmalia-session
 
-# Remove the session (install.sh install):
+# Fedora
+sudo dnf remove cosmalia-session
+
+# Manual (install.sh)
 sudo rm /usr/share/wayland-sessions/cosmalia.desktop \
         /usr/bin/cosmalia-session \
         /usr/bin/cosmalia-session-default \
         /usr/lib/systemd/user/cosmalia-session.target \
         /usr/lib/systemd/user/noctalia.service \
         /usr/lib/systemd/user/cosmic-settings-daemon.service \
-        /usr/share/xdg-desktop-portal/cosmalia-portals.conf \
-        /usr/share/doc/cosmalia-session/README.md \
-        /usr/share/licenses/cosmalia-session/LICENSE
+        /usr/share/xdg-desktop-portal/cosmalia-portals.conf
 systemctl --user daemon-reload
-
-# And the patched compositor, if wanted:
-sudo pacman -S cosmic-comp
 ```
 
-Removing the package doesn't restore the greeter config; if Cosmalia was the default, point the greeter elsewhere first (the `pre_remove` message says so).
-## NixOS
+If Cosmalia was the greeter default, restore your previous config first (the package's `pre_remove` warns about this).
 
-Add this flake to your NixOS configuration:
+## Upgrading from `cosmic-comp-traffic-session`
 
-```nix
-# flake.nix
-{
-  inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    cosmalia-session.url = "github:grigio/cosmalia-session";
-  };
+The package `Obsoletes`/`Conflicts` with the old name. Installing `cosmalia-session` replaces it automatically. The helper also removes the old launcher from gtkgreet.
 
-  outputs = { self, nixpkgs, cosmalia-session, ... }: {
-    nixosConfigurations.your-host = nixpkgs.lib.nixosSystem {
-      system = "x86_64-linux";
-      modules = [
-        cosmalia-session.nixosModules.cosmalia-session
-        ({ config, pkgs, ... }: {
-          services.cosmalia-session = {
-            enable = true;
-            # Make Cosmalia the default greetd session
-            defaultSession = true;
-            # Enable XWayland support for legacy X11 apps
-            enableXWayland = true;
-            # Add extra packages to the session environment
-            extraPackages = [ pkgs.firefox pkgs.vscode ];
-          };
-        })
-      ];
-    };
-  };
-}
-```
+## Files Installed
 
-Then rebuild:
+| Path | Purpose |
+|------|---------|
+| `/usr/bin/cosmalia-session` | Session launcher |
+| `/usr/bin/cosmalia-session-default` | Greeter helper |
+| `/usr/share/wayland-sessions/cosmalia.desktop` | XDG session entry |
+| `/usr/share/xdg-desktop-portal/cosmalia-portals.conf` | Portal routing |
+| `/usr/lib/systemd/user/cosmalia-session.target` | Session target |
+| `/usr/lib/systemd/user/noctalia.service` | Shell service |
+| `/usr/lib/systemd/user/cosmic-settings-daemon.service` | Config watcher service |
 
-```sh
-sudo nixos-rebuild switch --flake .#your-host
-```
+## License
 
-### NixOS Module Options
-
-| Option | Type | Default | Description |
-|---|---|---|---|
-| `services.cosmalia-session.enable` | boolean | `false` | Enable Cosmalia session |
-| `services.cosmalia-session.package` | package | this flake's package for your system | Cosmalia session package to use |
-| `services.cosmalia-session.defaultSession` | boolean | `false` | Make Cosmalia the default greetd session |
-| `services.cosmalia-session.enableXWayland` | boolean | `false` | Enable XWayland support |
-| `services.cosmalia-session.extraPackages` | list of packages | `[]` | Additional packages for the session |
-
-The module injects the correct package for your system automatically, so you
-do not need to apply the overlay when using it. On NixOS the launcher, desktop
-entry and systemd user units are rewritten to Nix store paths at build time.
-
-### Using the Overlay
-
-If you want to use the package in your own flake without the module:
-
-```nix
-# flake.nix
-{
-  inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    cosmalia-session.url = "github:grigio/cosmalia-session";
-  };
-
-  outputs = { self, nixpkgs, cosmalia-session, ... }: {
-    nixosConfigurations.your-host = nixpkgs.lib.nixosSystem {
-      system = "x86_64-linux";
-      modules = [
-        ({ config, pkgs, ... }: {
-          # The overlay makes cosmalia-session available in pkgs
-          nixpkgs.overlays = [ cosmalia-session.overlays.default ];
-          
-          environment.systemPackages = [ pkgs.cosmalia-session ];
-        })
-      ];
-    };
-  };
-}
-```
-
-### Development Shell
-
-Enter a development shell with all dependencies:
-
-```sh
-nix develop github:grigio/cosmalia-session
-```
-
+MIT — see [LICENSE](LICENSE)

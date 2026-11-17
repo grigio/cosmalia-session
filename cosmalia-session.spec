@@ -18,7 +18,7 @@ Source0:        cosmalia-session-%{version}.tar.gz
 
 BuildArch:      noarch
 BuildRequires:  systemd-rpm-macros
-Requires:       cosmic-comp
+Requires:       cosmic-comp-traffic
 Requires:       noctalia
 Requires:       cosmic-settings-daemon
 Requires:       xdg-desktop-portal-wlr
