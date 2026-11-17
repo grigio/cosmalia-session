@@ -27,7 +27,7 @@
     # happened to evaluate this flake. `builtins.currentSystem` is impure
     # and produces the wrong package on remote/cross builds.
     overlays.default = final: prev: {
-      cosmalia-session = self.packages.${prev.system}.cosmalia-session;
+      cosmalia-session = self.packages.${final.system}.cosmalia-session;
     };
 
     # NixOS modules are system independent. Inject the flake into the

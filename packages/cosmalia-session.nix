@@ -9,7 +9,6 @@
   dbus,
   xdg-desktop-portal-wlr,
   xdg-desktop-portal-gtk,
-  xdg-desktop-portal-cosmic,
   polkit,
   gnome-keyring,
   wireplumber,
@@ -68,7 +67,6 @@ in
       cosmic-settings-daemon
       xdg-desktop-portal-wlr
       xdg-desktop-portal-gtk
-      xdg-desktop-portal-cosmic
       polkit
       gnome-keyring
       wireplumber
@@ -87,7 +85,7 @@ in
     meta = {
       description = "Cosmalia: minimal COSMIC desktop with cosmic-comp-traffic and Noctalia";
       longDescription = ''
-        Cosmalia is a lightweight, modern Linux desktop that runs in under 1 GB of RAM.
+        Cosmalia is a lightweight, modern Linux desktop that runs in less than 400 MB of RAM.
         It combines two projects:
 
         - cosmic-comp-traffic: the COSMIC compositor fork with macOS-style traffic-light

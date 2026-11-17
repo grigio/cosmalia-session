@@ -108,6 +108,29 @@ jobs:
             --define "_srcrpmdir $HOME/rpmbuild/SRPMS" \
             cosmalia-session.spec
 
+      - name: Verify RPM contents
+        run: |
+          set -euo pipefail
+          cd "$HOME/rpmbuild"
+          # FILEMODES 100xxx = regular file; ignore directory entries so the
+          # comparison is exactly the nine files listed in files.manifest.
+          rpm -qp --qf '[%{FILENAMES} %{FILEMODES:octal}\n]' RPMS/noarch/*.rpm |
+              awk '$2 ~ /^100/ {print $1}' | sort > /tmp/rpm-files.txt
+          cat > /tmp/expected-files.txt <<'EOF'
+          /usr/bin/cosmalia-session
+          /usr/bin/cosmalia-session-default
+          /usr/lib/systemd/user/cosmalia-session.target
+          /usr/lib/systemd/user/cosmic-settings-daemon.service
+          /usr/lib/systemd/user/noctalia.service
+          /usr/share/doc/cosmalia-session/README.md
+          /usr/share/licenses/cosmalia-session/LICENSE
+          /usr/share/wayland-sessions/cosmalia.desktop
+          /usr/share/xdg-desktop-portal/cosmalia-portals.conf
+          EOF
+          sort -o /tmp/expected-files.txt /tmp/expected-files.txt
+          cat /tmp/rpm-files.txt
+          diff -u /tmp/expected-files.txt /tmp/rpm-files.txt
+
       - name: Collect packages
         id: pkg
         run: |

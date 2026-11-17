@@ -1,7 +1,7 @@
 # Maintainer: grigio <grigio.org>
 #
-# Package for Cosmalia: a minimal COSMIC-based Wayland desktop (under 1 GB of
-# RAM) built on cosmic-comp-traffic and Noctalia. It installs the launcher, the
+# Package for Cosmalia: a minimal COSMIC-based Wayland desktop (less than 400 MB
+# of RAM) built on cosmic-comp-traffic and Noctalia. It installs the launcher, the
 # XDG session entry, the systemd user units and the optional greeter helper
 # from files/ in this repo. Nothing is downloaded — the repo is the source
 # tree, so $startdir is used in package() and there is no source array.
@@ -25,7 +25,7 @@
 
 pkgname=cosmalia-session
 pkgver=${SESSION_VERSION:-$(git -C "${startdir:-$PWD}" describe --tags --abbrev=0 2>/dev/null | sed 's/^v//')}
-pkgver=${pkgver:-1.3.4}
+pkgver=${pkgver:-1.4.0}
 _pkgrel=$(git -C "${startdir:-$PWD}" rev-list --count HEAD -- \
   PKGBUILD cosmalia-session.install files README.md LICENSE \
   scripts/set-default-greetd.sh 2>/dev/null || true)
@@ -45,9 +45,9 @@ license=(MIT)
 # and serves as the fallback backend for interfaces cosmic doesn't implement.
 # Screenshot and ScreenCast use the wlr backend (xdg-desktop-portal-wlr) because
 # xdg-desktop-portal-cosmic crashes on ext_image_copy_capture_session_v1
-# protocol errors. xdg-desktop-portal-cosmic is listed but commented out as
-# it is currently unstable for screencast/screenshot; it still provides the
-# Settings and RemoteDesktop portals. polkit ships polkit-agent-helper-1, the
+# protocol errors. xdg-desktop-portal-cosmic is intentionally not a dependency:
+# it is currently buggy, so ScreenCast/Screenshot go to wlr and FileChooser to
+# GTK (see cosmalia-portals.conf). polkit ships polkit-agent-helper-1, the
 # helper used by Noctalia's built-in polkit agent. gnome-keyring provides the
 # Secret Service browsers expect. wireplumber is the PipeWire session manager;
 # pipewire-pulse only requires the virtual pipewire-session-manager, so make
@@ -65,14 +65,14 @@ depends=(
   polkit
   gnome-keyring
   wireplumber
-  # xdg-desktop-portal-cosmic  # unstable for screencast/screenshot; provides Settings, RemoteDesktop
+  # xdg-desktop-portal-cosmic  # buggy; intentionally not used (see cosmalia-portals.conf)
 )
 optdepends=(
   'cosmic-settings: GUI app for COSMIC settings (not started by the session)'
   'cosmic-screenshot: screenshot app (screenshots go through the portal)'
   'inotify-tools: event-driven socket detection in the launcher (falls back to polling)'
   'polkit-gnome: fallback polkit agent when Noctalia built-in agent is disabled'
-  'zram-generator: compressed RAM swap (helps stay under 1 GB)'
+  'zram-generator: compressed RAM swap (helps stay under 400 MB)'
   'systemd-oomd: userspace OOM killer for memory pressure'
 )
 # Renamed from cosmic-comp-traffic-session; let pacman replace the old package

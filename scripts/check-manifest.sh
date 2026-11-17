@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # Verify that files.manifest matches the source tree and the RPM %files list.
 # Also make sure the Arch and Nix packagers still copy the shared files/ tree.
+# Snippets checked below are literal shell text copied from the packaging
+# files; the $vars in them must not be expanded by shellcheck.
+# shellcheck disable=SC2016
 set -euo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
@@ -61,6 +64,29 @@ grep -qF 'cp -a "$startdir/files/." "$pkgdir/"' PKGBUILD ||
 # shellcheck disable=SC2016
 grep -qF 'cp -r $src/files/* $out/' packages/cosmalia-session.nix ||
     fail "Nix package no longer copies the whole files/ tree"
+
+# Tree copying alone is not enough: the helper, docs, license and the mirrored
+# Nix-standard tree must stay in sync too, or files silently disappear from one
+# of the three packages.
+require_snippet() {
+    local file=$1 snippet=$2
+    grep -qF -- "$snippet" "$file" || fail "$file no longer contains: $snippet"
+}
+
+echo "Checking helper, docs, license and mirrored trees..."
+# shellcheck disable=SC2016  # literal snippets, not shell expansions
+require_snippet PKGBUILD '"$startdir/scripts/set-default-greetd.sh"'
+require_snippet PKGBUILD '"$startdir/README.md"'
+require_snippet PKGBUILD '"$startdir/LICENSE"'
+require_snippet packages/cosmalia-session.nix '$src/scripts/set-default-greetd.sh'
+require_snippet packages/cosmalia-session.nix '$src/README.md'
+require_snippet packages/cosmalia-session.nix '$src/LICENSE'
+require_snippet packages/cosmalia-session.nix 'cp $out/usr/lib/systemd/user/* $out/share/systemd/user/'
+for mirror in 'cp -r $out/usr/bin/. $out/bin/' \
+    'cp -r $out/usr/share/. $out/share/' \
+    'cp -r $out/usr/lib/. $out/lib/'; do
+    require_snippet packages/cosmalia-session.nix "$mirror"
+done
 
 echo
 if (( failures == 0 )); then

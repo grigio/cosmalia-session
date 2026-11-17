@@ -23,8 +23,8 @@ jobs:
       - name: shellcheck
         run: |
           set -euo pipefail
-          shellcheck -s sh files/usr/bin/cosmalia-session
-          shellcheck -s bash scripts/*.sh cosmalia-session.install
+          shellcheck -x -s sh files/usr/bin/cosmalia-session
+          shellcheck -x -s bash scripts/*.sh cosmalia-session.install
 
   version:
     name: version consistency
@@ -45,6 +45,8 @@ jobs:
       - uses: actions/checkout@v6
       - name: Test the greetd helper
         run: sudo ./scripts/test-set-default-greetd.sh
+      - name: Test the installation verifier
+        run: ./scripts/test-verify.sh
 
   package:
     name: makepkg
@@ -65,7 +67,6 @@ jobs:
             cosmic-settings-daemon \
             cosmic-settings \
             cosmic-screenshot \
-            xdg-desktop-portal-cosmic \
             xdg-desktop-portal-wlr \
             xdg-desktop-portal-gtk \
             polkit \
@@ -73,7 +74,7 @@ jobs:
             wireplumber
 
       # Install cosmic-comp-traffic from GitHub release (epoch-1.11.0)
-      # cosmalia-session 1.3.4 uses cosmic-comp-traffic 1.11.0
+      # cosmalia-session 1.4.0 uses cosmic-comp-traffic 1.11.0
       # Post-transaction hook fails in container but package installs OK; run without set -e
       - name: Install cosmic-comp-traffic
         run: |

@@ -5,8 +5,6 @@
 # Build: rpmbuild -ba cosmalia-session.spec
 # Requires: rpmbuild, rpmdevtools, fedora-review
 
-%global _hardened_build 1
-
 Name:           cosmalia-session
 Version:        %{version}
 Release:        %{release}%{?dist}
@@ -23,7 +21,6 @@ Requires:       noctalia
 Requires:       cosmic-settings-daemon
 Requires:       xdg-desktop-portal-wlr
 Requires:       xdg-desktop-portal-gtk
-Requires:       xdg-desktop-portal-cosmic
 Requires:       polkit
 Requires:       gnome-keyring
 Requires:       wireplumber
@@ -44,7 +41,7 @@ Conflicts:      cosmic-comp-traffic-session
 
 %description
 Cosmalia is a minimal COSMIC-based Wayland desktop environment designed to run
-in under 1 GB of RAM. It uses cosmic-comp-traffic (a patched COSMIC compositor
+in less than 400 MB of RAM. It uses cosmic-comp-traffic (a patched COSMIC compositor
 with macOS-style traffic-light decorations, wlr-foreign-toplevel support,
 3-finger workspace swipe, and in-process Alt+Tab) together with Noctalia
 (shell, bar, dock, launcher, notifications, lock screen, idle/suspend handling,
@@ -52,8 +49,8 @@ polkit agent, MPRIS, and screensaver).
 
 Portal backends:
 - xdg-desktop-portal-gtk: FileChooser (GTK4/libadwaita picker) and fallback
-- xdg-desktop-portal-wlr: ScreenCast and Screenshot (cosmic backend crashes)
-- xdg-desktop-portal-cosmic: Settings, RemoteDesktop, Access (screen sharing)
+- xdg-desktop-portal-wlr: ScreenCast and Screenshot
+xdg-desktop-portal-cosmic is intentionally not used: it is currently buggy.
 
 This package installs:
 - The session launcher (/usr/bin/cosmalia-session)

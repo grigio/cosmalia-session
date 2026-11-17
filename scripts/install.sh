@@ -86,7 +86,6 @@ while IFS= read -r -d '' f; do
     rel=${f#"$src"/}
     # Get permissions from source file (octal, e.g. 755, 644)
     perm=$(stat -c '%a' "$f")
-    printf 'install -m%s %s\n' "$perm" "/$rel"
     sudo install -D -o root -g root -m "$perm" "$f" "/$rel"
 done < <(find "$src" -type f -print0 | sort -z)
 

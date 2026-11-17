@@ -1,5 +1,5 @@
 #!/bin/sh
-# Cosmalia — a minimal COSMIC-based Wayland desktop in under 1 GB of RAM.
+# Cosmalia — the modern minimal Linux Desktop in less than 400 MB.
 # Source: https://github.com/grigio/cosmalia-session
 # (installed by the cosmalia-session package; edit the source, not
 # the copy in /usr/bin)
@@ -16,7 +16,7 @@
 #                                   screen, idle/suspend, polkit agent, MPRIS,
 #                                   screensaver; supervised by systemd
 #   cosmic-settings-daemon.service  cosmic-config watchers; supervised
-#   xdg-desktop-portal + wlr/cosmic impl (restarted below, see the comment)
+#   xdg-desktop-portal + wlr impl (restarted below, see the comment)
 # Already covered without starting anything here:
 #   xdg-desktop-portal-gtk          file dialogs (cosmalia-portals.conf);
 #                                   D-Bus activated, PartOf=graphical-session
@@ -50,6 +50,22 @@ export XCURSOR_SIZE="${XCURSOR_SIZE:-24}"
 # the session binaries below by absolute path so ~/.local/bin cannot shadow
 # the compositor or the shell.
 export PATH="$HOME/.local/bin:/usr/local/bin:$PATH"
+
+# Optional per-user configuration (plain KEY=VALUE, no shell is sourced).
+# Only consulted when the greeter (or the user manager) did not export the
+# variable already, so an explicit environment setting always wins.
+config=${XDG_CONFIG_HOME:-$HOME/.config}/cosmalia/session.conf
+if [ -z "${COSMALIA_NO_XWAYLAND+x}" ] && [ -r "$config" ]; then
+    while IFS='=' read -r key value; do
+        case $key in
+            COSMALIA_NO_XWAYLAND)
+                case $value in
+                    0|1) COSMALIA_NO_XWAYLAND=$value ;;
+                esac
+                ;;
+        esac
+    done <"$config"
+fi
 
 if [ -z "${XDG_RUNTIME_DIR:-}" ]; then
     XDG_RUNTIME_DIR="/run/user/$(id -u)"
@@ -126,11 +142,10 @@ cleanup() {
     # before logind tears down the scope.
     /usr/bin/timeout 10 /usr/bin/systemctl --user stop cosmalia-session.target \
         >>"$log" 2>&1 || true
-    # Restart portals to avoid stale WAYLAND_DISPLAY. The wlr backend serves
-    # ScreenCast/Screenshot; the cosmic backend serves Settings/RemoteDesktop.
+    # Restart the wlr portal to avoid a stale WAYLAND_DISPLAY. It serves
+    # ScreenCast/Screenshot; FileChooser is D-Bus activated in the GTK backend.
     /usr/bin/timeout 5 /usr/bin/systemctl --user stop \
-        org.freedesktop.impl.portal.desktop.wlr.service \
-        org.freedesktop.impl.portal.desktop.cosmic.service >>"$log" 2>&1 || true
+        org.freedesktop.impl.portal.desktop.wlr.service >>"$log" 2>&1 || true
     /usr/bin/timeout 10 /usr/bin/systemctl --user stop graphical-session.target \
         >>"$log" 2>&1 || true
 }
@@ -140,32 +155,40 @@ trap 'cleanup; [ -n "${comp_pid:-}" ] && kill "$comp_pid" 2>/dev/null; exit 143'
 trap 'cleanup; [ -n "${comp_pid:-}" ] && kill "$comp_pid" 2>/dev/null; exit 130' INT
 trap 'cleanup; [ -n "${comp_pid:-}" ] && kill "$comp_pid" 2>/dev/null; exit 129' HUP
 
-# Find the socket cosmic-comp listens on using inotifywait (event-driven,
-# no polling). Falls back to polling if inotifywait is unavailable.
-sock=""
-if command -v inotifywait >/dev/null 2>&1; then
-    # Wait for wayland-* socket creation in XDG_RUNTIME_DIR
-    # inotifywait -e create -t 30 watches for 30 seconds max
-    sock=$(inotifywait -e create -t 30 --format '%f' "$XDG_RUNTIME_DIR" 2>/dev/null | \
-        grep '^wayland-' | head -1)
-    if [ -n "$sock" ] && [ -S "$XDG_RUNTIME_DIR/$sock" ]; then
-        sock="$XDG_RUNTIME_DIR/$sock"
+# Locate the socket owned by the compositor we just started. Prefer `ss`
+# matching by PID so a stale socket from a previous session cannot be mistaken
+# for ours; without iproute2 use the stamp created before launching it.
+find_wayland_socket() {
+    if [ -x /usr/bin/ss ]; then
+        /usr/bin/ss -xlHp 2>/dev/null |
+            /usr/bin/awk -v p="pid=$comp_pid," 'index($0, p) && $2 == "LISTEN" {print $5; exit}'
     else
-        sock=""
+        /usr/bin/find "$XDG_RUNTIME_DIR" -maxdepth 1 -name 'wayland-*' -type s \
+            -newer "$stamp" -print -quit 2>/dev/null
+    fi
+}
+
+# Check immediately: inotify cannot report a create event that happened before
+# it started watching, and a fast compositor can create the socket before the
+# watcher is running. Waiting for the full inotify timeout in that case made
+# every login up to 30s slower.
+sock=$(find_wayland_socket)
+
+# Watch for a late socket creation if the immediate check found nothing. A
+# short timeout is enough: the polling loop below also checks that the
+# compositor is still alive and exits as soon as it dies.
+if [ -z "$sock" ] && command -v inotifywait >/dev/null 2>&1; then
+    new=$(inotifywait -e create -t 10 --format '%f' "$XDG_RUNTIME_DIR" 2>/dev/null |
+        grep '^wayland-' | head -1)
+    if [ -n "$new" ] && [ -S "$XDG_RUNTIME_DIR/$new" ]; then
+        sock="$XDG_RUNTIME_DIR/$new"
     fi
 fi
 
-# Fallback: polling (original behavior) if inotifywait failed or unavailable
+# Fallback: polling if neither the immediate check nor inotify found a socket.
 i=0
 while [ -z "$sock" ] && [ "$i" -lt 300 ] && kill -0 "$comp_pid" 2>/dev/null; do
-    if [ -x /usr/bin/ss ]; then
-        sock=$(/usr/bin/ss -xlHp 2>/dev/null |
-            /usr/bin/awk -v p="pid=$comp_pid," 'index($0, p) && $2 == "LISTEN" {print $5; exit}')
-    else
-        # no iproute2: newest socket created since the compositor started
-        sock=$(/usr/bin/find "$XDG_RUNTIME_DIR" -maxdepth 1 -name 'wayland-*' -type s \
-            -newer "$stamp" -print -quit 2>/dev/null)
-    fi
+    sock=$(find_wayland_socket)
     if [ -n "$sock" ] && [ -S "$sock" ]; then
         break
     fi
@@ -191,21 +214,21 @@ if [ -n "$sock" ]; then
     # survived a package upgrade and still has the old unit set cached.
     /usr/bin/systemctl --user daemon-reload 2>/dev/null || true
 
-    # Both portals are D-Bus activated and may still be running with the
-    # previous session's WAYLAND_DISPLAY (the cosmic backend has no PartOf=,
-    # so it survives logout; wlr backend same): restarting them costs ~100 ms
-    # and avoids a stale socket. `restart`, not `try-restart`: when the
-    # previous compositor died the backend usually exited too, and try-restart
-    # ignores failed units — that left the portal without a backend for the
-    # whole session.
+    # xdg-desktop-portal and the wlr backend are D-Bus activated and may still
+    # be running with the previous session's WAYLAND_DISPLAY: they have no
+    # PartOf= and survive logout, so restarting them costs ~100 ms and avoids a
+    # stale socket. `restart`, not `try-restart`: when the previous compositor
+    # died the backend usually exited too, and try-restart ignores failed
+    # units — that left the portal without a backend for the whole session.
     #
     # xdg-desktop-portal-gtk serves FileChooser (see cosmalia-portals.conf)
     # but is D-Bus activated and PartOf=graphical-session.target, so it is
     # never running at this point and cannot hold a stale socket; it starts
     # fresh on the first file dialog and stops with the session.
+    # xdg-desktop-portal-cosmic is intentionally not used: it is currently
+    # buggy, so there is no cosmic backend unit to restart here.
     for svc in xdg-desktop-portal.service \
-        org.freedesktop.impl.portal.desktop.wlr.service \
-        org.freedesktop.impl.portal.desktop.cosmic.service; do
+        org.freedesktop.impl.portal.desktop.wlr.service; do
         /usr/bin/systemctl --user --no-block restart "$svc" >>"$log" 2>&1 || true
     done
 
@@ -216,7 +239,7 @@ if [ -n "$sock" ]; then
         say "warning: failed to start cosmalia-session.target, see journalctl --user"
     fi
 else
-    say "compositor socket not found after 30s, killing compositor and exiting"
+    say "compositor socket not found, killing compositor and exiting"
     kill "$comp_pid" 2>/dev/null
     wait "$comp_pid" 2>/dev/null
     cleanup

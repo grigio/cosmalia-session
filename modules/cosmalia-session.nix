@@ -81,7 +81,6 @@ in {
       extraPortals = with pkgs; [
         xdg-desktop-portal-gtk
         xdg-desktop-portal-wlr
-        xdg-desktop-portal-cosmic
         xdg-desktop-portal-gnome
       ];
       # The package's cosmalia-portals.conf is also on the system path; set

@@ -109,7 +109,7 @@ remove_old_env_entry() {
 }
 
 [[ -x $cmd ]] || {
-    echo "$cmd is missing, install the session first (./scripts/install.sh" >&2
+    echo "$cmd is missing, install the session first (./scripts/install.sh)" >&2
     echo "or the cosmalia-session package)" >&2
     exit 1
 }
