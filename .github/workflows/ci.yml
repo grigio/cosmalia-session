@@ -53,8 +53,8 @@ jobs:
       image: archlinux:base-devel
       options: --privileged
     steps:
-      - name: Bootstrap git
-        run: pacman -Syu --noconfirm --needed --disable-download-timeout git
+      - name: Bootstrap git and gh
+        run: pacman -Syu --noconfirm --needed --disable-download-timeout git github-cli
 
       # Install official COSMIC packages from extra
       - name: Install official COSMIC packages
