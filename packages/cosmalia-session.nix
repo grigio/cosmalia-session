@@ -28,12 +28,12 @@ stdenv.mkDerivation rec {
 
   # The package is architecture independent
   meta = {
-    description = "Cosmalia: minimal COSMIC desktop with cosmic-comp and Noctalia";
+    description = "Cosmalia: minimal COSMIC desktop with cosmic-comp-traffic and Noctalia";
     longDescription = ''
       Cosmalia is a lightweight, modern Linux desktop that runs in under 1 GB of RAM.
       It combines two projects:
 
-      - cosmic-comp: the COSMIC compositor with macOS-style traffic-light
+      - cosmic-comp-traffic: the COSMIC compositor fork with macOS-style traffic-light
         window buttons, Wayland blur, animations, 3-finger workspace swipes, and built-in Alt+Tab
       - Noctalia: the shell (bar, dock, launcher, notifications, networking, lock screen,
         idle/suspend, MPRIS, screensaver, and a polkit agent)

@@ -1,5 +1,28 @@
 {
   "nodes": {
+    "cosmic-comp-traffic": {
+      "inputs": {
+        "nix-filter": "nix-filter",
+        "nixpkgs": [
+          "nixpkgs"
+        ],
+        "parts": "parts",
+        "rust": "rust"
+      },
+      "locked": {
+        "lastModified": 1794493771,
+        "narHash": "sha256-pVypsz/REKh02B5CW1d9H5WfFrCflBweG9VUtUQEUTQ=",
+        "owner": "grigio",
+        "repo": "cosmic-comp-traffic",
+        "rev": "6c62868847b230ca7dd03b7de59a6b4521fd978e",
+        "type": "github"
+      },
+      "original": {
+        "owner": "grigio",
+        "repo": "cosmic-comp-traffic",
+        "type": "github"
+      }
+    },
     "flake-utils": {
       "inputs": {
         "systems": "systems"
@@ -15,6 +38,21 @@
       "original": {
         "owner": "numtide",
         "repo": "flake-utils",
+        "type": "github"
+      }
+    },
+    "nix-filter": {
+      "locked": {
+        "lastModified": 1791915028,
+        "narHash": "sha256-/vtxTQyuha8ssLhL5a1zsHoZM8R5gwWXZNun5CG+DrQ=",
+        "owner": "numtide",
+        "repo": "nix-filter",
+        "rev": "f54d82f341662c8b5c3ae92e614fe0a8c256b995",
+        "type": "github"
+      },
+      "original": {
+        "owner": "numtide",
+        "repo": "nix-filter",
         "type": "github"
       }
     },
@@ -34,10 +72,53 @@
         "type": "github"
       }
     },
+    "parts": {
+      "inputs": {
+        "nixpkgs-lib": [
+          "cosmic-comp-traffic",
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1793576659,
+        "narHash": "sha256-V1h85lUaJBQoHFrB2vpXZOE0Ju1MYSnIpsehoVZYlDo=",
+        "owner": "hercules-ci",
+        "repo": "flake-parts",
+        "rev": "ea2630b7470978622c7689a1ff75d2b389175399",
+        "type": "github"
+      },
+      "original": {
+        "owner": "hercules-ci",
+        "repo": "flake-parts",
+        "type": "github"
+      }
+    },
     "root": {
       "inputs": {
+        "cosmic-comp-traffic": "cosmic-comp-traffic",
         "flake-utils": "flake-utils",
         "nixpkgs": "nixpkgs"
+      }
+    },
+    "rust": {
+      "inputs": {
+        "nixpkgs": [
+          "cosmic-comp-traffic",
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1794388042,
+        "narHash": "sha256-rsskkiDNmuZGK6Xk3JvWUxWENjuX4Jf0hOSFYujGC0s=",
+        "owner": "oxalica",
+        "repo": "rust-overlay",
+        "rev": "0070500a3d72ade21323092e7bdd7125c5268482",
+        "type": "github"
+      },
+      "original": {
+        "owner": "oxalica",
+        "repo": "rust-overlay",
+        "type": "github"
       }
     },
     "systems": {

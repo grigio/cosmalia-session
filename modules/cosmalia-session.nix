@@ -5,7 +5,7 @@ let
 in
 {
   options.services.cosmalia-session = {
-    enable = lib.mkEnableOption "Cosmalia session (minimal COSMIC desktop with cosmic-comp and Noctalia)";
+    enable = lib.mkEnableOption "Cosmalia session (minimal COSMIC desktop with cosmic-comp-traffic and Noctalia)";
 
     # Whether to make Cosmalia the default greeter session
     defaultSession = lib.mkOption {
