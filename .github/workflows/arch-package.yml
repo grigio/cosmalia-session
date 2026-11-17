@@ -50,8 +50,23 @@ jobs:
           pacman-key --init
           pacman-key --recv-key 3056513887B78AEB --keyserver keyserver.ubuntu.com
           pacman-key --lsign-key 3056513887B78AEB
-          pacman -U --noconfirm 'https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-keyring.pkg.tar.zst'
-          pacman -U --noconfirm 'https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-mirrorlist.pkg.tar.zst'
+          # Try primary CDN, then fallback mirrors with retries
+          for url in \
+            'https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-keyring.pkg.tar.zst' \
+            'https://mirror.cyberbits.eu/chaotic-aur/chaotic-keyring.pkg.tar.zst' \
+            'https://pkgbuild.com/~chaotic-aur/chaotic-keyring.pkg.tar.zst'; do
+            if pacman -U --noconfirm "$url"; then break; fi
+            echo "Failed $url, trying next..." >&2
+            sleep 2
+          done
+          for url in \
+            'https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-mirrorlist.pkg.tar.zst' \
+            'https://mirror.cyberbits.eu/chaotic-aur/chaotic-mirrorlist.pkg.tar.zst' \
+            'https://pkgbuild.com/~chaotic-aur/chaotic-mirrorlist.pkg.tar.zst'; do
+            if pacman -U --noconfirm "$url"; then break; fi
+            echo "Failed $url, trying next..." >&2
+            sleep 2
+          done
           echo '[chaotic-aur]' >> /etc/pacman.conf
           echo 'Include = /etc/pacman.d/chaotic-mirrorlist' >> /etc/pacman.conf
           pacman -Sy --noconfirm
