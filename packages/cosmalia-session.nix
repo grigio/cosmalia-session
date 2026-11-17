@@ -1,7 +1,7 @@
 { cosmic-comp, noctalia, cosmic-settings, cosmic-settings-daemon, xdg-desktop-portal-wlr, xdg-desktop-portal-gtk, xdg-desktop-portal-cosmic, polkit, gnome-keyring, wireplumber, cosmic-screenshot, stdenv, makeWrapper, lib, src }:
 
 let
-  version = "1.2.3";
+  version = "1.2.4";
 in
 stdenv.mkDerivation rec {
   pname = "cosmalia-session";
