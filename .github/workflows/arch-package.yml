@@ -44,12 +44,18 @@ jobs:
         run: pacman -Syu --noconfirm --needed --disable-download-timeout git github-cli
 
       # Install COSMIC dependencies from official Arch extra repo
-      # cosmic-comp-traffic is now in extra (provides cosmic-comp with traffic-light buttons)
+      # cosmic-comp-traffic (patched compositor) is NOT in official repos,
+      # so download it from the project's GitHub releases
       - name: Install COSMIC dependencies
+        env:
+          TAG: ${{ github.event.inputs.tag || github.ref_name }}
         run: |
           set -euo pipefail
+          version=${TAG#v}
+          [[ $version =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "tag $TAG is not v<major>.<minor>.<patch>"; exit 1; }
+          
+          # Install official COSMIC packages from extra
           pacman -Syu --noconfirm --needed --disable-download-timeout \
-            cosmic-comp-traffic \
             noctalia \
             cosmic-settings-daemon \
             cosmic-settings \
@@ -60,6 +66,14 @@ jobs:
             polkit \
             gnome-keyring \
             wireplumber
+
+          # Install cosmic-comp-traffic from GitHub release (epoch-1.11.0)
+          # cosmalia-session 1.3.4 uses cosmic-comp-traffic 1.11.0
+          gh release download "epoch-1.11.0" \
+            --repo grigio/cosmic-comp-traffic \
+            --pattern '*.pkg.tar.zst' \
+            --dir /tmp
+          pacman -U --noconfirm /tmp/cosmic-comp-traffic-*.pkg.tar.zst
             noctalia \
             cosmic-settings \
             cosmic-settings-daemon \
