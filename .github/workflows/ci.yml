@@ -1,8 +1,9 @@
 name: CI
 
 # Cheap sanity checks on every push / pull request: the shell scripts pass
-# shellcheck and the PKGBUILD still builds. Releases are built by
-# arch-package.yml on v* tags.
+# shellcheck, the version is consistent across all packaging, the flake checks
+# out and the PKGBUILD still builds. Releases are built by arch-package.yml and
+# fedora-package.yml on v* tags.
 
 on:
   push:
@@ -24,6 +25,26 @@ jobs:
           set -euo pipefail
           shellcheck -s sh files/usr/bin/cosmalia-session
           shellcheck -s bash scripts/*.sh cosmalia-session.install
+
+  version:
+    name: version consistency
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0  # tags are needed to check VERSION against releases
+      - name: Check VERSION, PKGBUILD fallback and git tags
+        run: ./scripts/check-version.sh
+      - name: Check packaged file manifest
+        run: ./scripts/check-manifest.sh
+
+  test:
+    name: shell tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Test the greetd helper
+        run: sudo ./scripts/test-set-default-greetd.sh
 
   package:
     name: makepkg
@@ -122,3 +143,14 @@ jobs:
       - name: Nix build package
         run: |
           nix --extra-experimental-features "nix-command flakes" build .#cosmalia-session
+      - name: Check Nix package version matches VERSION
+        run: |
+          set -euo pipefail
+          expected=$(<VERSION)
+          actual=$(nix --extra-experimental-features "nix-command flakes" \
+            eval --raw .#cosmalia-session.version)
+          [[ "$actual" == "$expected" ]] || {
+            echo "nix package version '$actual' != VERSION '$expected'" >&2
+            exit 1
+          }
+          echo "nix package version $actual matches VERSION"

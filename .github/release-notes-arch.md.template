@@ -1,0 +1,37 @@
+Arch Linux package of [Cosmalia](https://github.com/{{REPOSITORY}})
+`{{TAG}}`: the opinionated XDG session (launcher, session entry and
+systemd user units) for cosmic-comp-traffic + Noctalia.
+
+### Install
+
+```sh
+gh release download {{TAG}} -R {{REPOSITORY}} -p '*.pkg.tar.zst*' -D /tmp/cosmalia-session
+cd /tmp/cosmalia-session && sha256sum -c ./*.pkg.tar.zst.sha256
+sudo pacman -U ./*.pkg.tar.zst
+```
+
+The package does not change the greeter default. To make it selectable
+in a gtkgreet dropdown without changing the default:
+
+```sh
+sudo cosmalia-session-default --list
+```
+
+Then, optionally, make it the greeter default:
+
+```sh
+sudo cosmalia-session-default
+```
+
+Needs `cosmic-comp` (provided by cosmic-comp-traffic), `noctalia`,
+`cosmic-settings-daemon`, `xdg-desktop-portal-gtk`, `xdg-desktop-portal-wlr`,
+`polkit`, `gnome-keyring` and `wireplumber`. Optional: `cosmic-settings`,
+`cosmic-screenshot`, `inotify-tools`, `polkit-gnome`, `zram-generator` and
+`systemd-oomd`. The package replaces the old `cosmic-comp-traffic-session`
+package.
+
+### Revert
+
+```sh
+sudo pacman -R cosmalia-session
+```

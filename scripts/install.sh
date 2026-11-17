@@ -46,7 +46,7 @@ fi
 # The session starts these directly, so a missing one is a broken install,
 # not a warning.
 missing=0
-for bin in /usr/bin/cosmic-comp /usr/bin/noctalia /usr/bin/cosmic-settings-daemon /usr/bin/cosmic-screenshot; do
+for bin in /usr/bin/cosmic-comp /usr/bin/noctalia /usr/bin/cosmic-settings-daemon; do
     if [[ ! -x $bin ]]; then
         echo "error: $bin is missing or not executable" >&2
         missing=1

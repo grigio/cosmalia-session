@@ -16,7 +16,7 @@
 # that touched packaged files, so a local build matches the CI-built package.
 # Both can be overridden, as .github/workflows/arch-package.yml does:
 #
-#   SESSION_VERSION=1.2.3 SESSION_PKGREL=12 makepkg -f
+#   SESSION_VERSION=1.3.3 SESSION_PKGREL=12 makepkg -f
 #
 # pkgrel is derived from git history (commits touching packaging files) so that
 # a rebuild of the same tag still produces a higher pkgrel, which pacman sees
@@ -25,7 +25,7 @@
 
 pkgname=cosmalia-session
 pkgver=${SESSION_VERSION:-$(git -C "${startdir:-$PWD}" describe --tags --abbrev=0 2>/dev/null | sed 's/^v//')}
-pkgver=${pkgver:-1.2.3}
+pkgver=${pkgver:-1.3.3}
 _pkgrel=$(git -C "${startdir:-$PWD}" rev-list --count HEAD -- \
   PKGBUILD cosmalia-session.install files README.md LICENSE \
   scripts/set-default-greetd.sh 2>/dev/null || true)
@@ -51,21 +51,26 @@ license=(MIT)
 # helper used by Noctalia's built-in polkit agent. gnome-keyring provides the
 # Secret Service browsers expect. wireplumber is the PipeWire session manager;
 # pipewire-pulse only requires the virtual pipewire-session-manager, so make
-the choice explicit.
+# the choice explicit.
+#
+# cosmic-settings and cosmic-screenshot are ordinary applications, not session
+# components: Screenshot/ScreenCast go through xdg-desktop-portal-wlr. They are
+# listed as optional below.
 depends=(
   cosmic-comp
   noctalia
-  cosmic-settings
   cosmic-settings-daemon
   xdg-desktop-portal-wlr
   xdg-desktop-portal-gtk
   polkit
   gnome-keyring
   wireplumber
-  cosmic-screenshot
   # xdg-desktop-portal-cosmic  # unstable for screencast/screenshot; provides Settings, RemoteDesktop
 )
 optdepends=(
+  'cosmic-settings: GUI app for COSMIC settings (not started by the session)'
+  'cosmic-screenshot: screenshot app (screenshots go through the portal)'
+  'inotify-tools: event-driven socket detection in the launcher (falls back to polling)'
   'polkit-gnome: fallback polkit agent when Noctalia built-in agent is disabled'
   'zram-generator: compressed RAM swap (helps stay under 1 GB)'
   'systemd-oomd: userspace OOM killer for memory pressure'

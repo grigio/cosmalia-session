@@ -18,6 +18,15 @@ check_bin() {
     fi
 }
 
+check_opt_bin() {
+    if command -v "$1" >/dev/null; then
+        echo -e "${GREEN}✓${NC} $1 (optional)"
+    else
+        echo -e "${YELLOW}⚠${NC} $1 (optional, not installed)"
+    fi
+    return 0
+}
+
 check_file() {
     if [[ -f "$1" ]]; then
         echo -e "${GREEN}✓${NC} $1"
@@ -47,7 +56,12 @@ echo "Checking required binaries..."
 check_bin cosmic-comp || ((errors++))
 check_bin noctalia || ((errors++))
 check_bin cosmic-settings-daemon || ((errors++))
-check_bin cosmic-screenshot || ((errors++))
+echo
+echo "Checking optional apps/helpers (not required to start the session)..."
+check_opt_bin cosmic-settings
+check_opt_bin cosmic-screenshot
+check_opt_bin inotifywait
+echo
 check_bin xdg-desktop-portal || ((errors++))
 check_bin gnome-keyring-daemon || ((errors++))
 check_bin wireplumber || ((errors++))

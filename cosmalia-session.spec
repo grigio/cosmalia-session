@@ -20,7 +20,6 @@ BuildArch:      noarch
 BuildRequires:  systemd-rpm-macros
 Requires:       cosmic-comp
 Requires:       noctalia
-Requires:       cosmic-settings
 Requires:       cosmic-settings-daemon
 Requires:       xdg-desktop-portal-wlr
 Requires:       xdg-desktop-portal-gtk
@@ -28,9 +27,12 @@ Requires:       xdg-desktop-portal-cosmic
 Requires:       polkit
 Requires:       gnome-keyring
 Requires:       wireplumber
-Requires:       cosmic-screenshot
 
-# Optional but recommended
+# Optional applications / helpers, not needed to start the session.
+# Screenshots go through xdg-desktop-portal-wlr, not cosmic-screenshot.
+Recommends:     cosmic-settings
+Recommends:     cosmic-screenshot
+Recommends:     inotify-tools
 Recommends:     polkit-gnome
 Recommends:     zram-generator
 Recommends:     systemd-oomd

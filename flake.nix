@@ -10,50 +10,108 @@
     };
   };
 
-  outputs = { self, nixpkgs, flake-utils, cosmic-comp-traffic, ... }:
-    flake-utils.lib.eachSystem [ "x86_64-linux" "aarch64-linux" ] (system:
-      let
+  outputs = {
+    self,
+    nixpkgs,
+    flake-utils,
+    cosmic-comp-traffic,
+    ...
+  }: let
+    systems = ["x86_64-linux" "aarch64-linux"];
+
+    # Single source of truth for the release version. CI checks that this
+    # matches the git tag being released and that the package picks it up.
+    version = nixpkgs.lib.strings.trim (builtins.readFile ./VERSION);
+
+    # Resolve the package for the caller's system, not for whichever system
+    # happened to evaluate this flake. `builtins.currentSystem` is impure
+    # and produces the wrong package on remote/cross builds.
+    overlays.default = final: prev: {
+      cosmalia-session = self.packages.${prev.system}.cosmalia-session;
+    };
+
+    # NixOS modules are system independent. Inject the flake into the
+    # module through `_module.args`; the module then selects the right
+    # package using its own `pkgs.system`.
+    nixosModules.cosmalia-session = {
+      imports = [./modules/cosmalia-session.nix];
+      _module.args.cosmaliaSessionFlake = self;
+    };
+
+    # Boots a VM and asserts the package files, units and greetd wiring really
+    # land in the system (the module-check below only proves evaluation).
+    nixosTests.cosmalia-session = import ./tests/nixos/cosmalia-session.nix {
+      pkgs = nixpkgs.legacyPackages.x86_64-linux;
+      inherit nixosModules;
+    };
+  in
+    flake-utils.lib.eachSystem systems (
+      system: let
         pkgs = nixpkgs.legacyPackages.${system};
 
-        # Get the repo source (excluding packages and modules directories)
-        repo-src = builtins.filterSource (path: type: 
-          baseNameOf path != "packages" && 
-          baseNameOf path != "modules" &&
-          baseNameOf path != ".git" &&
-          baseNameOf path != "flake.lock"
-        ) self;
+        # The derivation only needs the runtime files, scripts and docs.
+        # cleanSourceWith drops build metadata and the large docs/ images from
+        # the build input instead of copying them into every derivation.
+        repo-src = nixpkgs.lib.cleanSourceWith {
+          src = self;
+          filter = path: type: let
+            base = baseNameOf path;
+          in
+            base
+            != "packages"
+            && base != "modules"
+            && base != ".git"
+            && base != "flake.lock"
+            && base != "docs"
+            && base != "result"
+            && base != "tests";
+        };
 
-        # Import the package with the repo source
         cosmalia-session = pkgs.callPackage ./packages/cosmalia-session.nix {
+          inherit version;
           src = repo-src;
           cosmic-comp = cosmic-comp-traffic.packages.${system}.default;
         };
 
-        # Import the NixOS module
-        nixosModule = import ./modules/cosmalia-session.nix {
-          inherit pkgs cosmalia-session;
-        };
-      in
-      {
+        # Force a full NixOS module evaluation at check time so that broken
+        # options / module arguments are caught by `nix flake check`.
+        module-check = let
+          eval = nixpkgs.lib.nixosSystem {
+            modules = [
+              {nixpkgs.hostPlatform = system;}
+              nixosModules.cosmalia-session
+              ({...}: {services.cosmalia-session.enable = true;})
+            ];
+          };
+        in
+          pkgs.runCommand "check-cosmalia-session-module" {} ''
+            test -n "${eval.config.services.cosmalia-session.package.name}"
+            echo ok > $out
+          '';
+      in {
         packages = {
           inherit cosmalia-session;
           default = cosmalia-session;
         };
 
-        nixosModules = {
-          cosmalia-session = nixosModule;
+        # `nix develop github:grigio/cosmalia-session` (documented in README)
+        devShells.default = pkgs.mkShell {
+          inputsFrom = [cosmalia-session];
+          packages = with pkgs; [alejandra statix];
         };
 
-        # Checks for CI
-        checks = {
-          inherit cosmalia-session;
-        };
+        checks =
+          {
+            inherit cosmalia-session module-check;
+          }
+          // nixpkgs.lib.optionalAttrs (system == "x86_64-linux") {
+            nixos-cosmalia-session = nixosTests.cosmalia-session;
+          };
+
+        formatter = pkgs.alejandra;
       }
     )
     // {
-      # Provide an overlay for use in other flakes (single function, not per-system)
-      overlays.default = final: prev: {
-        cosmalia-session = self.packages.${builtins.currentSystem}.cosmalia-session;
-      };
+      inherit overlays nixosModules nixosTests;
     };
 }

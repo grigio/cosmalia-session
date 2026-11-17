@@ -1,0 +1,13 @@
+# Canonical list of files installed by every packaging format.
+# scripts/check-manifest.sh verifies this against the sources and the RPM %files
+# section; PKGBUILD and the Nix derivation copy the whole files/ tree, so they
+# cannot silently miss an entry from here.
+/usr/bin/cosmalia-session
+/usr/bin/cosmalia-session-default
+/usr/lib/systemd/user/cosmalia-session.target
+/usr/lib/systemd/user/noctalia.service
+/usr/lib/systemd/user/cosmic-settings-daemon.service
+/usr/share/wayland-sessions/cosmalia.desktop
+/usr/share/xdg-desktop-portal/cosmalia-portals.conf
+/usr/share/doc/cosmalia-session/README.md
+/usr/share/licenses/cosmalia-session/LICENSE

@@ -39,6 +39,13 @@ export XDG_SESSION_DESKTOP=cosmalia
 # the portal read /usr/share/xdg-desktop-portal/cosmalia-portals.conf, which
 # gives FileChooser to the GTK backend and ScreenCast/Screenshot to wlr.
 export XDG_CURRENT_DESKTOP=cosmalia:COSMIC
+# cosmic-comp (smithay) loads cursor images from XCURSOR_THEME/XCURSOR_SIZE at
+# startup. Without XCURSOR_THEME it asks for a theme literally named "default",
+# which does not exist on most systems, so resize/move/grab cursors silently
+# fail to load and the arrow never changes at window edges. Default to Adwaita
+# (shipped by adwaita-icon-theme) but respect an explicit user choice.
+export XCURSOR_THEME="${XCURSOR_THEME:-Adwaita}"
+export XCURSOR_SIZE="${XCURSOR_SIZE:-24}"
 # Keep the user's local bin first for the apps Noctalia spawns, but resolve
 # the session binaries below by absolute path so ~/.local/bin cannot shadow
 # the compositor or the shell.

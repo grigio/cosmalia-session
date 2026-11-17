@@ -23,12 +23,20 @@ Installing Cosmalia won't change your default session. It's available to pick, b
 | `xdg-desktop-portal-cosmic` | Portal backend for Settings, RemoteDesktop, Access (screen sharing); screencast/screenshot unstable |
 | `xdg-desktop-portal-gtk` | Portal backend for FileChooser (GTK4/libadwaita picker) and fallback for unimplemented interfaces |
 | `xdg-desktop-portal-wlr` | Portal backend for ScreenCast and Screenshot (cosmic backend crashes on ext_image_copy_capture_session_v1) |
-| `cosmic-settings` | Settings app for controlling cosmic-comp features |
 | `cosmic-settings-daemon` | Watches cosmic-config changes so theme, appearance, and keybind edits apply live |
-| `cosmic-screenshot` | Screenshot utility that goes through the portal |
 | `polkit` | Provides `polkit-agent-helper-1` for the polkit agent |
-| `polkit-gnome` | Optional fallback polkit agent; Noctalia already registers one, so run only one |
 | `gnome-keyring` | Secret Service for browsers and apps; unlocked by PAM at login |
+
+Optional (declared as `optdepends`/`Recommends`, not needed to start the session):
+
+| Package | Why you might want it |
+|---|---|
+| `cosmic-settings` | GUI app for COSMIC settings; launches on demand |
+| `cosmic-screenshot` | Screenshot app; the session itself screenshots through the portal |
+| `inotify-tools` | Event-driven Wayland socket detection in the launcher; without it the launcher falls back to polling |
+| `polkit-gnome` | Fallback polkit agent; Noctalia already registers one, so run only one |
+| `zram-generator` | Compressed RAM swap (see below) |
+| `systemd-oomd` | Userspace OOM killer for memory pressure |
 
 Not included — install separately if needed: `voxtype` (voice typing), `syncthing` (file sync), `gvfs` (trash, recent files, MTP/network mounts). Some COSMIC features need extra components; this session stays minimal on purpose.
 
@@ -109,10 +117,14 @@ See [Making it the greeter default](#making-it-the-greeter-default) for the defa
 `pkgver` comes from the nearest `v<major>.<minor>.<patch>` tag and `pkgrel` from the number of commits that touched packaged files, so a local `makepkg` matches the CI-built package for the same commit. Both can be overridden:
 
 ```sh
-SESSION_VERSION=1.2.3 SESSION_PKGREL=12 makepkg -f
+SESSION_VERSION=1.3.3 SESSION_PKGREL=12 makepkg -f
 ```
 
 Every `v*` tag is built by `.github/workflows/arch-package.yml` in an `archlinux:base-devel` container and attached to its GitHub release. A rebuild of the same tag still works because `pkgrel` is part of the filename.
+
+#### Versioning
+
+`VERSION` is the single source of truth for the release version (currently `1.3.3`). The Nix flake reads it for `packages.cosmalia-session.version`, the PKGBUILD uses it as its no-git fallback, and both release workflows refuse to publish a tag whose `v<version>` does not match it. `scripts/check-version.sh` runs in CI on every push/PR and again in each release job, so a backwards or mismatched version bump fails the build instead of shipping.
 
 `cosmic-comp` is in the official repositories, so `makepkg` works without `--nodeps`. `noctalia` and the COSMIC packages are in `extra`; on CachyOS the CachyOS repositories carry the same packages.
 
@@ -122,7 +134,7 @@ The post-install message tells you Cosmalia was **not** made the default, how to
 
 The Fedora RPM package is built from `cosmalia-session.spec` by `.github/workflows/fedora-package.yml` in a `fedora:latest` container. It installs the same files with Fedora paths (`/usr/lib/systemd/user/` for user units). Version comes from the tag and release from git history (same scheme as Arch). Every `v*` tag produces a noarch RPM and a source RPM attached to the GitHub release.
 
-All COSMIC dependencies (`cosmic-comp`, `noctalia`, `cosmic-settings`, `cosmic-settings-daemon`, `cosmic-screenshot`, `xdg-desktop-portal-gtk`, `xdg-desktop-portal-wlr`, `xdg-desktop-portal-cosmic`) are available in Fedora repositories. The package uses `Recommends` for optional dependencies (`polkit-gnome`, `zram-generator`, `systemd-oomd`). It `Obsoletes`/`Conflicts` with the old `cosmic-comp-traffic-session` package.
+Required COSMIC dependencies (`cosmic-comp`, `noctalia`, `cosmic-settings-daemon`, `xdg-desktop-portal-gtk`, `xdg-desktop-portal-wlr`, `xdg-desktop-portal-cosmic`) are available in Fedora repositories. `cosmic-settings`, `cosmic-screenshot`, `inotify-tools`, `polkit-gnome`, `zram-generator` and `systemd-oomd` are optional `Recommends`. It `Obsoletes`/`Conflicts` with the old `cosmic-comp-traffic-session` package.
 
 ### Upgrading from `cosmic-comp-traffic-session`
 
@@ -161,7 +173,7 @@ Already covered without starting anything here:
 
 The keyring is unlocked by PAM at login. Make sure your display manager's PAM file (`/etc/pam.d/greetd`, `/etc/pam.d/gdm-password`, …) loads `pam_gnome_keyring.so`; the current greetd config already does.
 
-`cosmic-settings` and `cosmic-screenshot` are installed as part of the stack but are normal applications: they launch on demand, not by the session.
+`cosmic-settings` and `cosmic-screenshot` are optional applications: they launch on demand, not by the session. Install them only if you want the GUI settings app or a standalone screenshot tool.
 
 The compositor runs with `--no-xwayland` by default for security and resource usage. To enable XWayland (for legacy X11 apps), set `COSMALIA_NO_XWAYLAND=0` in your environment before starting the session (e.g., in `~/.profile` or a systemd drop-in).
 
@@ -197,6 +209,12 @@ Deliberately **not** part of the session:
 | `files/usr/lib/systemd/user/cosmalia-session.target` | same | Session target, `BindsTo=graphical-session.target`; pulls in the two services below |
 | `files/usr/lib/systemd/user/noctalia.service` | same | Noctalia under systemd: `Restart=on-failure`, journal logging, `PartOf=` the session target |
 | `files/usr/lib/systemd/user/cosmic-settings-daemon.service` | same | cosmic-config watchers under systemd, same lifecycle |
+| `VERSION` | — | Single source of truth for the release version (read by flake, PKGBUILD fallback and CI) |
+| `files.manifest` | — | Canonical installed-file list, checked against the sources and RPM `%files` |
+| `scripts/check-version.sh` | — | Validates VERSION against git tags and the release tag |
+| `scripts/check-manifest.sh` | — | Validates `files.manifest` against all packagers |
+| `scripts/test-set-default-greetd.sh` | — | Tests the `-c` rewrite / `--list` logic of the greeter helper (run as root) |
+| `tests/nixos/cosmalia-session.nix` | — | NixOS VM test: boots the module and asserts installed files, units and greetd wiring |
 | `scripts/install.sh` | — | Copies session files, helper, and docs onto `/` |
 | `scripts/verify.sh` | — | Verifies installation (binaries, units, portal config, session entry) |
 | `scripts/set-default-greetd.sh` | `/usr/bin/cosmalia-session-default` | Opt-in: preselects the session in gtkgreet (or with `--list`, only lists it) |
@@ -271,7 +289,7 @@ Add this flake to your NixOS configuration:
         ({ config, pkgs, ... }: {
           services.cosmalia-session = {
             enable = true;
-            # Make Cosmalia the default greeter session (requires greetd)
+            # Make Cosmalia the default greetd session
             defaultSession = true;
             # Enable XWayland support for legacy X11 apps
             enableXWayland = true;
@@ -296,9 +314,14 @@ sudo nixos-rebuild switch --flake .#your-host
 | Option | Type | Default | Description |
 |---|---|---|---|
 | `services.cosmalia-session.enable` | boolean | `false` | Enable Cosmalia session |
-| `services.cosmalia-session.defaultSession` | boolean | `false` | Make Cosmalia the default greeter session |
+| `services.cosmalia-session.package` | package | this flake's package for your system | Cosmalia session package to use |
+| `services.cosmalia-session.defaultSession` | boolean | `false` | Make Cosmalia the default greetd session |
 | `services.cosmalia-session.enableXWayland` | boolean | `false` | Enable XWayland support |
 | `services.cosmalia-session.extraPackages` | list of packages | `[]` | Additional packages for the session |
+
+The module injects the correct package for your system automatically, so you
+do not need to apply the overlay when using it. On NixOS the launcher, desktop
+entry and systemd user units are rewritten to Nix store paths at build time.
 
 ### Using the Overlay
 
