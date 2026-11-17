@@ -115,9 +115,8 @@ jobs:
           cd $HOME/rpmbuild
           shopt -s nullglob
           assets=()
-          for file in RPMS/noarch/*.rpm SRPMS/*.src.rpm; do
-            sha256sum "$file" > "$file.sha256"
-            assets+=("$file" "$file.sha256")
+          for file in RPMS/noarch/*.rpm; do
+            assets+=("$file")
           done
           (( ${#assets[@]} )) || { echo "no package was produced" >&2; exit 1; }
           printf '%s\n' "${assets[@]}" > /tmp/assets.txt

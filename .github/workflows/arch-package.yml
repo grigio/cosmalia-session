@@ -123,8 +123,7 @@ jobs:
           shopt -s nullglob
           assets=()
           for file in *.pkg.tar.zst; do
-            sha256sum "$file" > "$file.sha256"
-            assets+=("$file" "$file.sha256")
+            assets+=("$file")
           done
           (( ${#assets[@]} )) || { echo "no package was produced" >&2; exit 1; }
           printf '%s\n' "${assets[@]}" > /tmp/assets.txt
