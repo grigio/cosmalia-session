@@ -5,3 +5,7 @@ out/
 *.pkg.tar.zst
 *.pkg.tar.zst.sha256
 *.pkg.tar.zst.sig
+
+# Local files
+TODO.txt
+result
