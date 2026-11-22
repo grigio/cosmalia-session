@@ -22,6 +22,10 @@ Exec=/usr/bin/true
 EOF
 chmod 0644 /usr/share/dbus-1/services/org.freedesktop.impl.portal.desktop.cosmic.service
 
+# greetd is a daemon: PAM_TTY is not set, so pam_securetty refuses the login
+# and the autologin session never starts (falls back to the greeter).
+sed -i '/pam_securetty\.so/d' /etc/pam.d/greetd
+
 # Services that pull in nothing the live session uses.
 rm -f /etc/systemd/system/multi-user.target.wants/remote-fs.target
 rm -f /etc/systemd/user/sockets.target.wants/p11-kit-server.socket

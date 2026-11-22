@@ -3,7 +3,10 @@ arch-install-scripts
 base
 
 # --- CachyOS kernel and live-initramfs -------------------------------------
+linux-cachyos
 linux-cachyos-lts
+intel-ucode
+amd-ucode
 mkinitcpio
 mkinitcpio-archiso
 linux-firmware
