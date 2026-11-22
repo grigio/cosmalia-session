@@ -78,6 +78,14 @@ filter_pacman_conf() {
 }
 
 filter_pacman_conf /etc/pacman.conf > "$PROFILE/pacman.conf"
+# No docs/manuals/translations in the live image (saves ~370 MiB installed).
+cat >> "$PROFILE/pacman.conf" <<'EOF'
+NoExtract = usr/share/locale/*
+NoExtract = usr/share/man/*
+NoExtract = usr/share/doc/*
+NoExtract = usr/share/help/*
+NoExtract = usr/share/gtk-doc/*
+EOF
 cat >> "$PROFILE/pacman.conf" <<EOF
 
 # Packages that are not in any CachyOS/Arch repository.

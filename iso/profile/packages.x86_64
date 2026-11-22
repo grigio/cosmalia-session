@@ -31,8 +31,8 @@ brightnessctl
 grim
 slurp
 satty
-cosmic-screenshot
-cosmic-launcher
+# cosmic-screenshot/cosmic-launcher dropped: screenshots go through the portal,
+# Alt+Tab is in-process in cosmic-comp-traffic.
 
 # --- login manager ----------------------------------------------------------
 greetd

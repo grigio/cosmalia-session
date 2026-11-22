@@ -1,5 +1,4 @@
 {
-    Screenshot: "cosmic-screenshot",
-    WindowSwitcher: "cosmic-launcher alt-tab",
-    WindowSwitcherPrevious: "cosmic-launcher shift-alt-tab",
+    // Screenshots are handled by the Print shortcut (grim | satty).
+    // Alt+Tab is handled in-process by cosmic-comp-traffic.
 }
