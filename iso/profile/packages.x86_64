@@ -8,6 +8,8 @@ intel-ucode
 amd-ucode
 mkinitcpio
 mkinitcpio-archiso
+archlinux-keyring
+cachyos-keyring
 linux-firmware
 syslinux
 
@@ -20,7 +22,7 @@ cosmic-settings
 cosmic-icon-theme
 
 # --- requested desktop apps ------------------------------------------------
-alacritty-blur
+alacritty
 brave-origin-bin
 
 # --- tools used by the copied cosmic-comp shortcuts ------------------------

@@ -22,6 +22,10 @@ Exec=/usr/bin/true
 EOF
 chmod 0644 /usr/share/dbus-1/services/org.freedesktop.impl.portal.desktop.cosmic.service
 
+# Initialise the pacman keyring so `pacman -Syu` works in the live system.
+pacman-key --init
+pacman-key --populate archlinux cachyos
+
 # greetd is a daemon: PAM_TTY is not set, so pam_securetty refuses the login
 # and the autologin session never starts (falls back to the greeter).
 sed -i '/pam_securetty\.so/d' /etc/pam.d/greetd

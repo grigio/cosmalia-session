@@ -15,7 +15,6 @@ WORK_DIR="${ISO_WORK_DIR:-/tmp/opencode/cosmalia-iso-work}"
 # Work on a copy: generated pacman.conf / mirrorlists never touch the source tree.
 PROFILE="$WORK_DIR/profile"
 COMP_SOURCE="${COMP_SOURCE_DIR:-$ISO_DIR/../../cosmic-comp-traffic}"
-ALACRITTY_SOURCE="${ALACRITTY_SOURCE_DIR:-$ISO_DIR/../../alacritty-blur-pkg}"
 
 log() { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
 SUDO=(); (( EUID == 0 )) || SUDO=(sudo)
@@ -61,22 +60,6 @@ else
 fi
 log "Using $comp_pkg"
 cp -f "$comp_pkg" "$REPO_DIR/"
-
-# 2b. Locally built alacritty (with COSMIC blur/scrolling patches).
-if [[ -n "${ALACRITTY_PKG:-}" ]]; then
-  alacritty_pkg="$ALACRITTY_PKG"
-else
-  alacritty_pkg="$(find "$ALACRITTY_SOURCE" -maxdepth 1 -name 'alacritty-blur-*.pkg.tar.zst' \
-                   -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2- || true)"
-fi
-if [[ -n "$alacritty_pkg" && -f "$alacritty_pkg" ]]; then
-  log "Using $alacritty_pkg"
-  cp -f "$alacritty_pkg" "$REPO_DIR/"
-else
-  # No local patched build (e.g. in CI): use the upstream repo package.
-  log "No local alacritty-blur package; using 'alacritty' from the repos"
-  sed -i 's/^alacritty-blur$/alacritty/' "$PROFILE/packages.x86_64"
-fi
 
 # ---------------------------------------------------------------------------
 # 3. Generate pacman configs and create a local package repository.
