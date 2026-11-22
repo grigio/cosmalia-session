@@ -17,6 +17,6 @@ file_permissions=(
   ["/etc/shadow"]="0:0:400"
   ["/etc/gshadow"]="0:0:400"
   ["/root"]="0:0:700"
-  ["/home/liveuser"]="1000:1000:750"
+  # /home/liveuser is created by mkarchiso from passwd + skel.
   ["/etc/sudoers.d/99-liveuser"]="0:0:440"
 )
