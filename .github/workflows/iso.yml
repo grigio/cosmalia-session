@@ -1,0 +1,78 @@
+name: Live ISO
+
+# Builds the CachyOS/Cosmalia live ISO and attaches it to the release.
+# Triggers on every v* tag; workflow_dispatch rebuilds/attaches to an existing
+# tag (e.g. to publish the first ISO for v1.4.0).
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to build, e.g. v1.4.0'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: iso-${{ github.event.inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  iso:
+    name: ${{ github.event.inputs.tag || github.ref_name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    container:
+      image: cachyos/cachyos:latest
+      options: --privileged
+    steps:
+      - name: Bootstrap build tools
+        run: |
+          pacman -Syu --noconfirm --needed --disable-download-timeout \
+            git github-cli sudo base-devel archiso mkinitcpio-archiso \
+            squashfs-tools grub dosfstools mtools libisoburn
+
+      - name: Checkout (with tags for pkgver/pkgrel)
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Fetch cosmic-comp-traffic package
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/comp
+          gh release download "epoch-1.11.0" --repo grigio/cosmic-comp-traffic \
+            --pattern '*.pkg.tar.zst' --dir /tmp/comp
+          comp="$(find /tmp/comp -maxdepth 1 -name '*.pkg.tar.zst' | head -1)"
+          [[ -n "$comp" ]] || { echo "no cosmic-comp-traffic package downloaded" >&2; exit 1; }
+          echo "COSMIC_COMP_PKG=$comp" >> "$GITHUB_ENV"
+
+      - name: Prepare unprivileged builder (makepkg refuses root)
+        run: |
+          useradd -m builder 2>/dev/null || true
+          echo 'builder ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/builder
+          chmod 0440 /etc/sudoers.d/builder
+          chown -R builder:builder "$GITHUB_WORKSPACE"
+
+      - name: Build ISO
+        run: |
+          set -euo pipefail
+          su builder -s /bin/bash -c \
+            "cd '$GITHUB_WORKSPACE/iso' && COSMIC_COMP_PKG='$COSMIC_COMP_PKG' ./build.sh"
+
+      - name: Attach ISO to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.event.inputs.tag || github.ref_name }}
+        run: |
+          set -euo pipefail
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" --generate-notes --title "$TAG"
+          fi
+          gh release upload "$TAG" "$GITHUB_WORKSPACE"/iso/out/*.iso --clobber

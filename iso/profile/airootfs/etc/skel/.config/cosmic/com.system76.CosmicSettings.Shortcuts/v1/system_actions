@@ -1,0 +1,5 @@
+{
+    Screenshot: "cosmic-screenshot",
+    WindowSwitcher: "cosmic-launcher alt-tab",
+    WindowSwitcherPrevious: "cosmic-launcher shift-alt-tab",
+}

@@ -1,0 +1,12 @@
+# greetd with the GTK greeter.  The live image autologins into Cosmalia via
+# initial_session; logging out drops back to gtkgreet with Cosmalia preselected.
+[terminal]
+vt = 1
+
+[default_session]
+command = "cage -s -- gtkgreet -c /usr/bin/cosmalia-session"
+user = "greeter"
+
+[initial_session]
+command = "/usr/bin/cosmalia-session"
+user = "liveuser"

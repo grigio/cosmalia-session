@@ -1,0 +1,57 @@
+# --- bootstrap -------------------------------------------------------------
+arch-install-scripts
+base
+
+# --- CachyOS kernel and live-initramfs -------------------------------------
+linux-cachyos-lts
+mkinitcpio
+mkinitcpio-archiso
+linux-firmware
+syslinux
+
+# --- Cosmalia session (local [cosmalia] repo, built by ../build.sh) --------
+cosmalia-session
+cosmic-comp-traffic
+noctalia
+cosmic-settings-daemon
+cosmic-settings
+cosmic-icon-theme
+
+# --- requested desktop apps ------------------------------------------------
+alacritty-blur
+brave-origin-bin
+
+# --- tools used by the copied cosmic-comp shortcuts ------------------------
+playerctl
+brightnessctl
+grim
+slurp
+satty
+cosmic-screenshot
+cosmic-launcher
+
+# --- login manager ----------------------------------------------------------
+greetd
+greetd-gtkgreet
+cage
+
+# --- portals / desktop integration -----------------------------------------
+xdg-desktop-portal
+xdg-desktop-portal-wlr
+xdg-desktop-portal-gtk
+polkit
+gnome-keyring
+dbus
+pipewire
+wireplumber
+
+# --- small userspace that makes the live session usable --------------------
+adwaita-icon-theme
+ttf-dejavu
+networkmanager
+wpa_supplicant
+sudo
+iproute2
+inotify-tools
+htop
+qemu-guest-agent

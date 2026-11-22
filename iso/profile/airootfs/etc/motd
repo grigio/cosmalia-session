@@ -1,0 +1,9 @@
+Cosmalia Live — CachyOS based
+==============================
+
+Minimal COSMIC desktop: cosmic-comp-traffic + Noctalia.
+You are logged in as 'liveuser' on tty1; Cosmalia starts automatically.
+
+To get a root shell:  sudo -i
+Session log:          cat "$XDG_RUNTIME_DIR/cosmalia-session.log"
+Shell/services:       journalctl --user -b -u noctalia.service
