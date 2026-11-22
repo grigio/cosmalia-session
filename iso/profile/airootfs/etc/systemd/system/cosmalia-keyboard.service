@@ -1,0 +1,13 @@
+[Unit]
+Description=Detect live-session keyboard layout
+After=systemd-localed.service dbus.service
+Before=greetd.service
+Wants=systemd-localed.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/bin/cosmalia-keyboard-detect
+
+[Install]
+WantedBy=multi-user.target

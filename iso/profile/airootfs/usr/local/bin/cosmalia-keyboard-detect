@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# Detect the keyboard layout for the live session.
+# 1) kernel cmdline kblayout=XX wins; 2) udev/Systemd hwdb auto-detection;
+# 3) fall back to us. Result is exported via /etc/environment.d (read by PAM).
+set -u
+
+layout=""
+for param in $(cat /proc/cmdline 2>/dev/null); do
+  case "$param" in
+    kblayout=*) layout=${param#kblayout=} ;;
+  esac
+done
+
+if [[ -z "$layout" ]]; then
+  # systemd-localed uses the udev hwdb to map the attached keyboard to a layout.
+  localectl set-keymap auto >/dev/null 2>&1 || true
+  layout=$(sed -n 's/^XKBLAYOUT=//p' /etc/vconsole.conf 2>/dev/null | tr -d '"' | head -1)
+fi
+[[ -n "$layout" ]] || layout=us
+
+mkdir -p /etc/environment.d
+printf 'XKB_DEFAULT_LAYOUT=%s\nXKB_DEFAULT_OPTIONS=compose:caps\n' "$layout" \
+  >/etc/environment.d/00-cosmalia-keyboard.conf
+chmod 0644 /etc/environment.d/00-cosmalia-keyboard.conf
+
+# Apply the console keymap too (systemd-vconsole-setup ran before this unit).
+[[ -r /etc/vconsole.conf ]] && systemctl restart systemd-vconsole-setup.service >/dev/null 2>&1 || true
+exit 0

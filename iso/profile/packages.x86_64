@@ -56,4 +56,5 @@ sudo
 iproute2
 inotify-tools
 htop
+octopi
 qemu-guest-agent
