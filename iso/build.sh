@@ -38,7 +38,9 @@ rm -f "$OUT_DIR"/*.iso
 log "Building cosmalia-session package from $SRC_DIR"
 (
   cd "$SRC_DIR"
-  PKGDEST="$REPO_DIR" makepkg --noconfirm --force
+  # Pure file-copy package: runtime deps are pulled into the ISO by pacstrap,
+  # so do not require them on the build host (CI has none of them installed).
+  PKGDEST="$REPO_DIR" makepkg --noconfirm --force --nodeps
 )
 
 # ---------------------------------------------------------------------------
