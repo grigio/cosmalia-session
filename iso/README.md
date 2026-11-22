@@ -5,7 +5,7 @@ desktop (`cosmic-comp-traffic` compositor + Noctalia shell).
 
 ## What is in it
 
-- CachyOS LTS kernel (`linux-cachyos-lts`) with an archiso initramfs
+- Mainline CachyOS kernel (`linux-cachyos`) with an archiso initramfs and CPU microcode
 - CachyOS/Arch repos configured in the live system
 - `cosmalia-session` and `cosmic-comp-traffic` built from the local source
   trees (`../` and `~/Code/cosmic-comp-traffic`)
