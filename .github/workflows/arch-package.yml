@@ -58,12 +58,12 @@ jobs:
             gnome-keyring \
             wireplumber
 
-      # Install cosmic-comp-traffic from GitHub release (epoch-1.11.0)
-      # cosmalia-session 1.4.0 uses cosmic-comp-traffic 1.11.0
+      # Install cosmic-comp-traffic from GitHub release (epoch-1.12.0)
+      # cosmalia-session 1.5.0 uses cosmic-comp-traffic 1.12.0
       # Post-transaction hook fails in container but package installs OK; run without set -e
       - name: Install cosmic-comp-traffic
         run: |
-          gh release download "epoch-1.11.0" \
+          gh release download "epoch-1.12.0" \
             --repo grigio/cosmic-comp-traffic \
             --pattern '*.pkg.tar.zst' \
             --dir /tmp

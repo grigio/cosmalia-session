@@ -2,7 +2,7 @@ name: Live ISO
 
 # Builds the CachyOS/Cosmalia live ISO and attaches it to the release.
 # Triggers on every v* tag; workflow_dispatch rebuilds/attaches to an existing
-# tag (e.g. to publish the first ISO for v1.4.0).
+# tag (e.g. to publish the first ISO for v1.5.0).
 
 on:
   push:
@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Release tag to build, e.g. v1.4.0'
+        description: 'Release tag to build, e.g. v1.5.0'
         required: true
         type: string
 
@@ -47,7 +47,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p /tmp/comp
-          gh release download "epoch-1.12.0-rc.1" --repo grigio/cosmic-comp-traffic \
+          gh release download "epoch-1.12.0" --repo grigio/cosmic-comp-traffic \
             --pattern '*.pkg.tar.zst' --dir /tmp/comp
           comp="$(find /tmp/comp -maxdepth 1 -name '*.pkg.tar.zst' | head -1)"
           [[ -n "$comp" ]] || { echo "no cosmic-comp-traffic package downloaded" >&2; exit 1; }
