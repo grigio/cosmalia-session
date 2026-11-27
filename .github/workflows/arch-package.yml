@@ -59,7 +59,7 @@ jobs:
             wireplumber
 
       # Install cosmic-comp-traffic from GitHub release (epoch-1.12.0)
-      # cosmalia-session 1.5.0 uses cosmic-comp-traffic 1.12.0
+      # cosmalia-session 1.5.1 uses cosmic-comp-traffic 1.12.0
       # Post-transaction hook fails in container but package installs OK; run without set -e
       - name: Install cosmic-comp-traffic
         run: |

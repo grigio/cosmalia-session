@@ -25,7 +25,7 @@
 
 pkgname=cosmalia-session
 pkgver=${SESSION_VERSION:-$(git -C "${startdir:-$PWD}" describe --tags --abbrev=0 2>/dev/null | sed 's/^v//')}
-pkgver=${pkgver:-1.5.0}
+pkgver=${pkgver:-1.5.1}
 _pkgrel=$(git -C "${startdir:-$PWD}" rev-list --count HEAD -- \
   PKGBUILD cosmalia-session.install files README.md LICENSE \
   scripts/set-default-greetd.sh 2>/dev/null || true)
