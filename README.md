@@ -27,8 +27,13 @@ cd iso && ./build.sh      # -> iso/out/cosmalia-cachyos-*-x86_64.iso
 ```
 
 The boot menu offers a default entry (autologin into Cosmalia), an Intel
-Panther Lake quirks entry, and a nomodeset fallback. See [iso/README.md](iso/README.md)
-for details and QEMU testing.
+Panther Lake quirks entry, and a nomodeset fallback.
+
+The ISO includes the **CachyOS installer** (Calamares) configured to install
+the live environment itself to disk — no downloads, no extra packages. Pick
+**Install Cosmalia** in the app menu (or run `cosmalia-installer`) and the
+installed system boots with **Limine** (UEFI/BIOS). See
+[iso/README.md](iso/README.md) for details and QEMU testing.
 
 ## Not a fit? Use cosmalia-session-dinit
 

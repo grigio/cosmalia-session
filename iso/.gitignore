@@ -7,3 +7,5 @@
 /profile/pacman.conf
 /profile/airootfs/etc/pacman.conf
 /profile/airootfs/etc/pacman.d/
+__pycache__/
+*.pyc

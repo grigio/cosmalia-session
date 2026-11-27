@@ -20,4 +20,8 @@ file_permissions=(
   # /home/liveuser is created by mkarchiso from passwd + skel.
   ["/etc/sudoers.d/99-liveuser"]="0:0:440"
   ["/usr/local/bin/cosmalia-keyboard-detect"]="0:0:755"
+  ["/usr/local/bin/cosmalia-installer"]="0:0:755"
+  ["/usr/local/bin/cosmalia-postinstall"]="0:0:755"
+  ["/usr/local/bin/cosmalia-limine-entries"]="0:0:755"
+  ["/usr/local/bin/limine-install"]="0:0:755"
 )

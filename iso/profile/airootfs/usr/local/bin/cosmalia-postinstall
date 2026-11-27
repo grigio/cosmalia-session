@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+# Called inside the install chroot by Calamares (shellprocess@cosmalia).
+# Turns the unpacked live filesystem into a regular, bootable Cosmalia system.
+set -euo pipefail
+
+say() { printf 'cosmalia-postinstall: %s\n' "$*"; }
+
+# --- drop live-only configuration -------------------------------------------
+rm -f /etc/sudoers.d/99-liveuser
+rm -f /etc/systemd/journald.conf.d/volatile-storage.conf
+rm -f /etc/systemd/logind.conf.d/do-not-suspend.conf
+rm -f /etc/mkinitcpio.conf.d/archiso.conf
+rmdir /etc/mkinitcpio.conf.d 2>/dev/null || true
+
+# --- a normal initramfs (the live one uses the archiso hooks) ----------------
+cat >/etc/mkinitcpio.conf <<'EOF'
+MODULES=()
+BINARIES=()
+FILES=()
+HOOKS=(base udev autodetect microcode modconf kms keyboard keymap consolefont block filesystems fsck)
+COMPRESSION="zstd"
+EOF
+cat >/etc/mkinitcpio.d/linux-cachyos.preset <<'EOF'
+ALL_config="/etc/mkinitcpio.conf"
+ALL_kver="/boot/vmlinuz-linux-cachyos"
+PRESETS=('default' 'fallback')
+default_image="/boot/initramfs-linux-cachyos.img"
+fallback_options="-S autodetect"
+fallback_image="/boot/initramfs-linux-cachyos-fallback.img"
+EOF
+
+# Calamares' Limine module looks for kernels in /usr/lib/modules/<version>/.
+for moddir in /usr/lib/modules/[0-9]*; do
+    [[ -d "$moddir" ]] || continue
+    if [[ ! -e "$moddir/vmlinuz" ]]; then
+        ln -sf /boot/vmlinuz-linux-cachyos "$moddir/vmlinuz"
+    fi
+done
+
+# --- keep Cosmalia preselected in the installed greetd/gtkgreet -------------
+if [[ -f /etc/greetd/config.toml ]]; then
+    sed -i -E 's|^command = "cage .*gtkgreet.*"$|command = "cage -s -- gtkgreet -c /usr/bin/cosmalia-session"|' /etc/greetd/config.toml
+fi
+printf '/usr/bin/cosmalia-session\n' >/etc/greetd/environments
+
+# removeuser deletes the account but may leave the home directory behind.
+if ! id liveuser >/dev/null 2>&1 && [[ -d /home/liveuser ]]; then
+    rm -rf /home/liveuser
+fi
+
+# systemd-firstboot must not overwrite the hostname/locale set by Calamares.
+rm -f /etc/systemd/system/firstboot.target.wants/systemd-firstboot.service
+
+say "installed system configured"

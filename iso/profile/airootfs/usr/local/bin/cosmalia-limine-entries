@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+# Add boot entries to the limine.conf that Calamares created in the ESP.
+# Calamares only writes the header (and /etc/default/limine); on a normal
+# CachyOS install limine-entry-tool would add the kernel entries.  We do it
+# here explicitly so this ISO stays self-contained.
+set -euo pipefail
+
+say() { printf 'cosmalia-limine-entries: %s\n' "$*"; }
+
+esp="$(awk '$3 == "vfat" { print $2; exit }' /etc/fstab 2>/dev/null || true)"
+[[ -n "$esp" ]] || esp="/boot/efi"
+conf="$esp/limine.conf"
+[[ -f "$conf" ]] || { say "no $conf, skipping"; exit 0; }
+
+root_uuid="$(awk '$2 == "/" && $1 ~ /^UUID=/ { sub(/^UUID=/, "", $1); print $1; exit }' /etc/fstab)"
+[[ -n "$root_uuid" ]] || { say "could not find root UUID"; exit 1; }
+
+# Calamares puts btrfs root in a subvolume; the kernel needs to be told which
+# one, otherwise it mounts the top-level subvolume (which has no /sbin/init).
+subvol="$(awk '$2 == "/" && $3 == "btrfs" {
+    for (i = 4; i <= NF; i++) if ($i ~ /^subvol=/) { sub(/^subvol=/, "", $i); print $i; exit }
+}' /etc/fstab)"
+rootflags=""
+[[ -n "$subvol" ]] && rootflags="rootflags=subvol=${subvol#/}"
+
+# Calamares leaves an empty "/+CachyOS" directory before our entries; leaving
+# it would make entry 1 an unbootable directory.  Drop it and make our first
+# kernel entry the default.
+sed -i -E '/^\/\+CachyOS[[:space:]]*$/d' "$conf"
+sed -i -E 's/^default_entry:.*/default_entry: 1/' "$conf"
+
+# Do not duplicate entries if the installer is ever re-run on the same disk.
+if grep -q 'Cosmalia (installed)' "$conf"; then
+    say "entries already present"
+    exit 0
+fi
+
+kver="$(basename "$(find /usr/lib/modules -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)")"
+cat >>"$conf" <<EOF
+
+/Cosmalia
+    protocol: linux
+    path: boot():/vmlinuz-linux-cachyos
+    module_path: boot():/initramfs-linux-cachyos.img
+    cmdline: root=UUID=$root_uuid $rootflags rw quiet nowatchdog
+/Cosmalia (fallback initramfs)
+    protocol: linux
+    path: boot():/vmlinuz-linux-cachyos
+    module_path: boot():/initramfs-linux-cachyos-fallback.img
+    cmdline: root=UUID=$root_uuid $rootflags rw quiet nowatchdog
+EOF
+
+say "added entries for kernel $kver"

@@ -13,8 +13,12 @@ desktop (`cosmic-comp-traffic` compositor + Noctalia shell).
 - greetd + gtkgreet (in `cage`) as the login manager: `initial_session`
   autologins `liveuser` into Cosmalia, logging out returns to the GTK greeter
   with Cosmalia preselected (`/etc/greetd/config.toml`)
-- No KDE/GNOME/calamares; Noctalia settings are sanitised (no user paths or
-  plugins) and the current user's cosmic-comp shortcuts are shipped in skel
+- **CachyOS installer**: Calamares (`cachyos-calamares-next`) in offline mode
+  installs this exact live environment to disk. Launch **Install Cosmalia**
+  from the app menu, or run `cosmalia-installer`. Bootloader is **Limine**
+  (UEFI and BIOS), with a normal non-archiso initramfs generated on install
+- No KDE/GNOME; Noctalia settings are sanitised (no user paths or plugins) and
+  the current user's cosmic-comp shortcuts are shipped in skel
 - Trimmed: no `foot` (Alacritty is the terminal), no qemu-guest-agent, no
   remote-fs or p11-kit socket; the buggy cosmic portal backend and the
   keyring prompter are disabled via D-Bus stubs
@@ -22,9 +26,14 @@ desktop (`cosmic-comp-traffic` compositor + Noctalia shell).
 ## Build
 
 ```sh
-# host needs: archiso mkinitcpio-archiso squashfs-tools grub
+# host needs: archiso mkinitcpio-archiso squashfs-tools grub curl
 ./build.sh
 ```
+
+`build.sh` also fetches Boost 1.91 libraries from the Arch package archive:
+the packaged `cachyos-calamares-next` is still built against that ABI while
+CachyOS currently ships Boost 1.92. They are added side by side in the image.
+Set `ISO_BOOST_URL` / `ISO_BOOST_CACHE` to override the source.
 
 Outputs:
 
@@ -36,10 +45,34 @@ Nothing is installed on the host; only `mkarchiso` runs via `sudo`.
 ## Test in QEMU
 
 ```sh
-./test.sh
+./test.sh              # verify the live desktop and greeter
+./test-installer.sh    # boot with a blank disk and exercise the installer
 ```
 
-Boots the ISO with KVM, OVMF (UEFI), QXL graphics and a serial console. The
-script uses QEMU's guest agent to verify packages/services inside the VM,
-captures screenshots of the desktop and the greetd greeter, and saves all
-evidence under `test-results/`.
+Both boot the ISO with KVM, OVMF (UEFI), QXL graphics and a serial console.
+`test.sh` uses QEMU's guest agent to verify packages/services inside the VM and
+captures screenshots of the desktop and the greetd greeter.
+
+`test-installer.sh` attaches an empty 40 GiB virtio disk, checks that
+Calamares/Limine and the custom configuration are present, then starts
+Calamares in the live Wayland session and captures a screenshot. Evidence is
+written under `test-results/installer/`.
+
+For a full interactive installation, leave the VM running with
+`./run-installer-vm.sh` and drive the wizard with
+`python3 installer-drive.py test-results/installer`. Afterwards boot the
+installed disk with `./test-installed.sh`. Helper tools: `qga.py` (run
+commands in the guest via QEMU Guest Agent), `vmctl.py` (keyboard, mouse,
+screenshots), e.g.:
+
+```sh
+python3 vmctl.py test-results/installer screenshot welcome
+python3 vmctl.py test-results/installer click 500 400
+python3 vmctl.py test-results/installer shell 'lsblk /dev/vda'
+```
+
+`./run-installed-vm.sh` boots the installed disk in a persistent GTK window
+(using the native Wayland backend, no XWayland). It reuses
+`test-results/installer/disk.qcow2` and the OVMF variables containing Limine's
+EFI entry; the monitor/QMP/serial/guest-agent sockets stay available for the
+helpers above.

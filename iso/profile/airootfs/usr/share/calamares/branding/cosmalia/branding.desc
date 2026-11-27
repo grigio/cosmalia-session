@@ -1,0 +1,35 @@
+# Cosmalia branding for the CachyOS Calamares installer.
+# The image assets are copied from the cachyos branding at ISO build time.
+---
+componentName: cosmalia
+
+welcomeStyleCalamares: false
+welcomeExpandingLogo: true
+windowExpanding: normal
+windowSize: 1000px,540px
+windowPlacement: center
+sidebar: qml,bottom
+navigation: widget
+
+strings:
+    productName:         Cosmalia
+    shortProductName:    Cosmalia
+    version:             Live
+    shortVersion:        Live
+    versionedName:       Cosmalia Live
+    shortVersionedName:  Cosmalia
+    bootloaderEntryName: Cosmalia
+
+images:
+    productLogo:    "logo.png"
+    productIcon:    "icon.png"
+    productWelcome: "welcome.png"
+
+style:
+   SidebarBackground:        "#292F34"
+   SidebarText:              "#FFFFFF"
+   SidebarTextCurrent:       "#292F34"
+   SidebarBackgroundCurrent: "#00CED1"
+
+slideshow: "show.qml"
+slideshowAPI: 2

@@ -39,6 +39,16 @@ greetd
 greetd-gtkgreet
 cage
 
+# --- CachyOS installer (Calamares, offline mode: installs this live image) ---
+cachyos-calamares-next
+qt6-wayland
+limine
+efibootmgr
+# filesystems the installer can create (Calamares does not depend on these)
+dosfstools
+btrfs-progs
+xfsprogs
+
 # --- portals / desktop integration -----------------------------------------
 xdg-desktop-portal
 xdg-desktop-portal-wlr

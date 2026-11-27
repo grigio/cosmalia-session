@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# Compatibility shim for CachyOS Calamares.
+#
+# Calamares calls `limine-install`, but current limine ships a unified `limine`
+# CLI without that command.  On UEFI, deploying Limine means copying its EFI
+# binary into the ESP (the standard \EFI\BOOT\BOOTX64.EFI fallback path) and
+# optionally registering an entry in NVRAM; on BIOS Calamares calls
+# `limine bios-install` directly, which the real CLI provides.
+set -u
+
+say() { printf 'limine-install: %s\n' "$*"; }
+
+esp="$(awk '$3 == "vfat" { print $2; exit }' /etc/fstab 2>/dev/null || true)"
+[[ -n "$esp" ]] || esp="/boot/efi"
+
+if [[ ! -d "$esp" ]]; then
+    say "no EFI system partition at $esp (BIOS install?)"
+    exit 0
+fi
+
+mkdir -p "$esp/EFI/BOOT"
+cp -f /usr/share/limine/BOOTX64.EFI "$esp/EFI/BOOT/BOOTX64.EFI"
+
+if [[ -d /sys/firmware/efi/efivars ]] && command -v efibootmgr >/dev/null 2>&1; then
+    src="$(findmnt -n -o SOURCE "$esp" 2>/dev/null || true)"
+    disk="$(lsblk -n -o PKNAME "$src" 2>/dev/null || true)"
+    part="$(grep -oE '[0-9]+$' <<<"$src" || true)"
+    if [[ -n "$disk" && -n "$part" ]]; then
+        efibootmgr -c -d "/dev/$disk" -p "$part" -L Cosmalia \
+            -l '\EFI\BOOT\BOOTX64.EFI' >/dev/null 2>&1 || true
+    fi
+fi
+
+say "deployed $esp/EFI/BOOT/BOOTX64.EFI"
+exit 0

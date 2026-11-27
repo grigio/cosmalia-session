@@ -32,6 +32,23 @@ cp -a "$SOURCE_PROFILE" "$PROFILE"
 rm -f "$OUT_DIR"/*.iso
 
 # ---------------------------------------------------------------------------
+# 0. Boost ABI compatibility for the packaged Calamares.
+#    cachyos-calamares-next was built against Boost.Python 1.91 while the
+#    current CachyOS repos ship boost-libs 1.92.  Ship the 1.91 shared
+#    libraries side by side (different SONAMEs, no pacman conflict) so the
+#    installer can actually start.  Remove this once the package is rebuilt.
+# ---------------------------------------------------------------------------
+BOOST_URL="${ISO_BOOST_URL:-https://archive.archlinux.org/packages/b/boost-libs/boost-libs-1.91.0-1-x86_64.pkg.tar.zst}"
+BOOST_CACHE="${ISO_BOOST_CACHE:-$ISO_DIR/local-repo/.boost-libs-1.91.0.pkg.tar.zst}"
+if [[ ! -f "$BOOST_CACHE" ]]; then
+  log "Downloading boost-libs 1.91 for Calamares ABI compatibility"
+  curl -fsSL -o "$BOOST_CACHE" "$BOOST_URL"
+fi
+mkdir -p "$WORK_DIR/boost191" "$PROFILE/airootfs/usr/lib"
+tar --zstd -xf "$BOOST_CACHE" -C "$WORK_DIR/boost191" usr/lib
+cp -a "$WORK_DIR/boost191"/usr/lib/libboost_*.so.1.91.0 "$PROFILE/airootfs/usr/lib/"
+
+# ---------------------------------------------------------------------------
 # 1. Build cosmalia-session from this source tree (pure file-copy package).
 # ---------------------------------------------------------------------------
 log "Building cosmalia-session package from $SRC_DIR"
